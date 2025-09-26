@@ -33,12 +33,21 @@ faultdef
 *>
 fn void? handle_message(LspMessage message)
 {
+	log::info("handling message `%s`", message.method);
 	switch (message.method)
 	{
+	case "initialize":
+		LspInitializeRequest initialize = initialize::parse_message(message)!;
+		log::debug("responding to `initialize` message");
+		String initialize_response = initialize.response(tmem);
+		io_handler::write(initialize_response);
+		log::debug("responded to `initialize` message");
+	case "initialized":
+		break;
 	default:
+		log::info("unknown method");
 		return UNKNOWN_METHOD?;
 	}
-	log::debug("sent response");
 }
 faultdef NOT_LSP_REQUEST;
 <*
