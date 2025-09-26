@@ -87,6 +87,14 @@ fn LspMessage? read(Allocator allocator, String message = {}) => @pool()
 	}
 	return decoded_message;
 }
+<*
+	@param [in] message
+*>
+fn void write(String message) @inline
+{
+	io::print(message);
+	io::stdout().flush()!!;
+}
 
 const STDIN_ALLOC_LEN @local = 1024;
 fn char[] load_stdin(Allocator allocator) @local
