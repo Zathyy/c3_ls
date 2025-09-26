@@ -41,12 +41,12 @@ fn LspMessage? read(Allocator allocator, String message = {}) => @pool()
 
 	if (prev_buffer.ptr == null)
 	{
-		log::verbose("initializing `prev_buffer`");
+		log::verbose("completely new message");
 		prev_buffer = (String)allocator::clone_slice(mem, read_buffer);
 	}
 	else
 	{
-		log::verbose("appending to `prev_buffer`");
+		log::verbose("continuing parsing of previous message");
 		char* pbptr = prev_buffer;
 		defer mem::free(pbptr);
 		prev_buffer = prev_buffer.concat(mem, (String)read_buffer);
@@ -55,14 +55,14 @@ fn LspMessage? read(Allocator allocator, String message = {}) => @pool()
 
 	if (try decoded_message = translator::decode(allocator, prev_buffer))
 	{
-		log::debug("decoded message successfully");
+		log::verbose("decoded message successfully");
 		mem::free(prev_buffer);
 		prev_buffer = {};
 		return decoded_message;
 	}
 	else
 	{
-		log::debug("failed to decoded message");
+		log::verbose("failed to decoded message");
 		return INCOMPLETE_MESSAGE?;
 	}
 }

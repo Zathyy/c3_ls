@@ -45,12 +45,12 @@ macro LspMessage? decode(Allocator allocator, String message) => @pool()
 	const String HEADER_START = "Content-Length: ";
 	if (message.len < HEADER_START.len + "\r\n\r\n".len + 1)
 	{
-		log::debug("invalid message: too short");
+		log::verbose("invalid message: too short");
 	}
 	String[] split = message.split(tmem, "\r\n\r\n");
 	if (split.len != 2)
 	{
-		log::debug("failed to split message %s", message);
+		log::verbose("failed to split message %s", message);
 		return INVALID_MESSAGE?;
 	}
 
@@ -59,7 +59,7 @@ macro LspMessage? decode(Allocator allocator, String message) => @pool()
 	usz content_length @noinit;
 	if (catch @try(content_length, content_length_str.to_integer(usz)))
 	{
-		log::debug("failed to read content length");
+		log::verbose("failed to read content length");
 		return INVALID_MESSAGE?;
 	}
 
@@ -67,11 +67,11 @@ macro LspMessage? decode(Allocator allocator, String message) => @pool()
 	Object* json_obj @noinit;
 	if (catch @try(json_obj, json::parse_string(allocator, json_message)))
 	{
-		log::debug("failed to read json contents");
+		log::verbose("failed to read json contents");
 		return INVALID_MESSAGE?;
 	}
 
-	log::debug("successfully read message");
+	log::verbose("successfully read message");
 
 	return {
 		.method = json_obj.get_string("method") ?? INVALID_MESSAGE?!,
