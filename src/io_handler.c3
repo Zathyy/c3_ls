@@ -1,5 +1,5 @@
 module lsp::io_handler;
-import lsp::msg_processor;
+import lsp::translator;
 
 import std::core::log;
 import std::core::mem;
@@ -53,7 +53,7 @@ fn LspMessage? read(Allocator allocator, String message = {}) => @pool()
 		log::debug("full message: %s", prev_buffer);
 	}
 
-	if (try decoded_message = msg_processor::decode(allocator, prev_buffer))
+	if (try decoded_message = translator::decode(allocator, prev_buffer))
 	{
 		log::debug("decoded message successfully");
 		mem::free(prev_buffer);

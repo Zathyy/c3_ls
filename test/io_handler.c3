@@ -1,5 +1,5 @@
 module lsp::io_handler @test;
-import lsp::msg_processor;
+import lsp::translator;
 
 import std::io;
 

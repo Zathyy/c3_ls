@@ -1,4 +1,4 @@
-module lsp::msg_processor;
+module lsp::translator;
 import json;
 
 import std::io;
