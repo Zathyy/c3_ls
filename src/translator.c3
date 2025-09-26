@@ -6,15 +6,21 @@ import std::encoding::json;
 import std::collections::object;
 import std::core::string;
 
-faultdef INVALID_MESSAGE;
+faultdef
+	INVALID_MESSAGE,
+	INCOMPLETE_JSON,
+;
 
 struct LspMessage (Printable)
 {
+	String rpc;
 	String method;
-	Object* contents;
+	Object* params;
 
 	Allocator allocator;
+	Object* contents;
 }
+fn bool LspMessage.is_initialized(self) @inline => self.contents != null;
 fn usz? LspMessage.to_format(&self, Formatter* formatter) @dynamic
 	=> formatter.printf("%s", self.contents);
 fn void LspMessage.free(&self)
@@ -22,6 +28,11 @@ fn void LspMessage.free(&self)
 	if (self.contents != null) self.contents.free();
 }
 
+<*
+	Turn data into JSONRPC string
+	@param [in] expr
+	@return "JSONRPC string allocated with `allocator`"
+*>
 macro String encode(expr, Allocator allocator, int indent = 0) => @pool()
 {
 	log::verbose("encoding message type %s", $typeof(expr).nameof);
@@ -38,6 +49,10 @@ macro String encode(expr, Allocator allocator, int indent = 0) => @pool()
 }
 
 <*
+	Decode JSONRPC message
+	@param [in] message
+	@return "LSP message allocated with `allocator`"
+	@return? INCOMPLETE_JSON
 	@return? INVALID_MESSAGE
 *>
 macro LspMessage? decode(Allocator allocator, String message) => @pool()
@@ -51,7 +66,7 @@ macro LspMessage? decode(Allocator allocator, String message) => @pool()
 	if (split.len != 2)
 	{
 		log::verbose("failed to split message %s", message);
-		return INVALID_MESSAGE?;
+		return INCOMPLETE_JSON?;
 	}
 
 	String header = split[0];
@@ -60,7 +75,7 @@ macro LspMessage? decode(Allocator allocator, String message) => @pool()
 	if (catch @try(content_length, content_length_str.to_integer(usz)))
 	{
 		log::verbose("failed to read content length");
-		return INVALID_MESSAGE?;
+		return INCOMPLETE_JSON?;
 	}
 
 	String json_message = split[1];
@@ -68,14 +83,41 @@ macro LspMessage? decode(Allocator allocator, String message) => @pool()
 	if (catch @try(json_obj, json::parse_string(allocator, json_message)))
 	{
 		log::verbose("failed to read json contents");
-		return INVALID_MESSAGE?;
+		return INCOMPLETE_JSON?;
 	}
 
 	log::verbose("successfully read message");
 
-	return {
-		.method = json_obj.get_string("method") ?? INVALID_MESSAGE?!,
-		.contents = json_obj,
+	LspMessage lsp_message = {
 		.allocator = allocator,
+		.contents = json_obj,
 	};
+	if (try rpc = json_obj.get_string("jsonrpc"))
+	{
+		lsp_message.rpc = rpc;
+	}
+	else
+	{
+		log::debug("lsp message is missing rpc");
+		return INVALID_MESSAGE?;
+	}
+	if (try method = json_obj.get_string("method"))
+	{
+		lsp_message.method = method;
+	}
+	else
+	{
+		log::debug("lsp message is missing method");
+		return INVALID_MESSAGE?;
+	}
+	if (try params = json_obj.get("params"))
+	{
+		lsp_message.params = params;
+	}
+	else
+	{
+		log::debug("lsp message is missing params");
+		return INVALID_MESSAGE?;
+	}
+	return lsp_message;
 }

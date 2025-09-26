@@ -9,11 +9,12 @@ fn void read_message()
 	defer io_handler::quit();
 
 	LspMessage actual = io_handler::read(mem,
-		"Content-Length: 15\r\n\r\n" +++ `{"method":"hi"}`)
+		"Content-Length: 43\r\n\r\n" +++ `{"jsonrpc":"2.0","method":"hi","params":{}}`)
 		?? { .method = "ERROR!" };
 	defer actual.free();
 	io::printn("//");
 	io::printn(actual);
+	assert(actual.rpc == "2.0");
 	assert(actual.method == "hi");
 }
 fn void read_message_compound()
@@ -22,13 +23,14 @@ fn void read_message_compound()
 	defer io_handler::quit();
 
 	assert(
-		@catch(io_handler::read(mem, "Content-Length: 15\r\n\r\n" +++ `{"met`))
-		== io_handler::INCOMPLETE_MESSAGE);
-	LspMessage actual = io_handler::read(mem, `hod":"hi"}`) ?? {
+		@catch(io_handler::read(mem, "Content-Length: 43\r\n\r\n" +++ `{"jsonrpc":"2.0","met`))
+		== translator::INCOMPLETE_JSON);
+	LspMessage actual = io_handler::read(mem, `hod":"hi","params":{}}`) ?? {
 		.method = "ERROR!",
 	};
 	defer actual.free();
 	io::printn("//");
 	io::printn(actual);
+	assert(actual.rpc == "2.0");
 	assert(actual.method == "hi");
 }

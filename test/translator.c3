@@ -35,10 +35,11 @@ fn void encode_message()
 }
 fn void decode_message()
 {
-	String decoded = "Content-Length: 15\r\n\r\n" +++ `{"method":"hi"}`;
+	String decoded = "Content-Length: 43\r\n\r\n" +++ `{"jsonrpc":"2.0","method":"hi","params":{}}`;
 	LspMessage actual = translator::decode(mem, decoded)!!;
 	defer actual.free();
 	io::printn("//");
 	io::printn(actual);
+	assert(actual.rpc == "2.0");
 	assert(actual.method == "hi");
 }

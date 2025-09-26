@@ -10,19 +10,34 @@ import libc;
 
 String prev_buffer;
 
+<*
+	Set up stdin for continuous reading
+*>
 fn void init()
 {
 	CInt fd_flags = os::fcntl(libc::STDIN_FD, os::F_GETFL, 0);
 	os::fcntl(libc::STDIN_FD, os::F_SETFL, fd_flags | os::O_NONBLOCK);
 }
+<*
+	Free incomplete message buffer
+*>
 fn void quit()
 {
 	if (prev_buffer.ptr != null) mem::free(prev_buffer);
 }
 
 faultdef
-	INCOMPLETE_MESSAGE
+	NO_NEW_DATA,
 ;
+<*
+	Reads LSP message from stdin
+	@param [in] allocator
+	@param [in] message
+	@return "LSP message allocated with `allocator`"
+	@return? NO_NEW_DATA
+	@return? translator::INCOMPLETE_JSON
+	@return? translator::INVALID_MESSAGE
+*>
 fn LspMessage? read(Allocator allocator, String message = {}) => @pool()
 {
 	char[] read_buffer;
@@ -34,7 +49,7 @@ fn LspMessage? read(Allocator allocator, String message = {}) => @pool()
 	else
 	{
 		read_buffer = load_stdin(tmem);
-		if (read_buffer.len == 0) return INCOMPLETE_MESSAGE?;
+		if (read_buffer.len == 0) return NO_NEW_DATA?;
 		log::verbose("reading from stdin");
 	}
 	log::debug("got message: %s", (String)read_buffer);
@@ -53,22 +68,28 @@ fn LspMessage? read(Allocator allocator, String message = {}) => @pool()
 		log::debug("full message: %s", prev_buffer);
 	}
 
-	if (try decoded_message = translator::decode(allocator, prev_buffer))
+	LspMessage? decoded_message = translator::decode(allocator, prev_buffer);
+	if (catch excuse = decoded_message)
+	{
+		log::verbose("failed to decoded message: %s", excuse);
+		switch (excuse)
+		{
+		case translator::INVALID_MESSAGE:
+			mem::free(prev_buffer);
+			prev_buffer = {};
+		}
+	}
+	else
 	{
 		log::verbose("decoded message successfully");
 		mem::free(prev_buffer);
 		prev_buffer = {};
-		return decoded_message;
 	}
-	else
-	{
-		log::verbose("failed to decoded message");
-		return INCOMPLETE_MESSAGE?;
-	}
+	return decoded_message;
 }
 
-const STDIN_ALLOC_LEN @private = 100;
-fn char[] load_stdin(Allocator allocator) @private
+const STDIN_ALLOC_LEN @local = 1024;
+fn char[] load_stdin(Allocator allocator) @local
 {
 	usz len;
 	char[] result = allocator::new_array(allocator, char, 1)[:0];
