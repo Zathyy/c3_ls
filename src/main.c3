@@ -8,10 +8,11 @@ fn int main(String[] args)
 	log::info("STARTUP");
 	io_handler::init();
 	defer io_handler::quit();
-	while (true)
+	while (true) @pool()
 	{
 		LspMessage? data = io_handler::read(tmem);
 		if (catch excuse = data) continue;
+		(void)msg_handler::handle_message(data);
 	};
 	log::info("BYE!!!!");
 	return 0;
