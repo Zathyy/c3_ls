@@ -11,12 +11,12 @@ fn int main(String[] args)
 	while (true)
 	{
 		// log::debug("LOOP!!!");
-		String? data = io_handler::read(tmem);
+		LspMessage? data = io_handler::read(tmem);
 		if (catch excuse = data)
 		{
 			// log::debug("data could not be read");
 		}
-		else if (data.len > 0)
+		else
 		{
 			log::debug("got data: %s", data);
 		}

@@ -8,6 +8,20 @@ import std::core::string;
 
 faultdef INVALID_MESSAGE;
 
+struct LspMessage (Printable)
+{
+	String method;
+	Object* contents;
+
+	Allocator allocator;
+}
+fn usz? LspMessage.to_format(&self, Formatter* formatter) @dynamic
+	=> formatter.printf("%s", self.contents);
+fn void LspMessage.free(&self)
+{
+	if (self.contents != null) self.contents.free();
+}
+
 macro String encode(expr, Allocator allocator, int indent = 0) => @pool()
 {
 	log::verbose("encoding message type %s", $typeof(expr).nameof);
@@ -26,7 +40,7 @@ macro String encode(expr, Allocator allocator, int indent = 0) => @pool()
 <*
 	@return? INVALID_MESSAGE
 *>
-macro String? decode(Allocator allocator, String message) => @pool()
+macro LspMessage? decode(Allocator allocator, String message) => @pool()
 {
 	const String HEADER_START = "Content-Length: ";
 	if (message.len < HEADER_START.len + "\r\n\r\n".len + 1)
@@ -51,12 +65,17 @@ macro String? decode(Allocator allocator, String message) => @pool()
 
 	String json_message = split[1];
 	Object* json_obj @noinit;
-	if (catch @try(json_obj, json::parse_string(tmem, json_message)))
+	if (catch @try(json_obj, json::parse_string(allocator, json_message)))
 	{
 		log::debug("failed to read json contents");
 		return INVALID_MESSAGE?;
 	}
 
 	log::debug("successfully read message");
-	return string::format(allocator, "%s", json_obj);
+
+	return {
+		.method = json_obj.get_string("method") ?? INVALID_MESSAGE?!,
+		.contents = json_obj,
+		.allocator = allocator,
+	};
 }

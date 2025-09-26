@@ -23,7 +23,7 @@ fn void quit()
 faultdef
 	INCOMPLETE_MESSAGE
 ;
-fn String? read(Allocator allocator, String message = {}) => @pool()
+fn LspMessage? read(Allocator allocator, String message = {}) => @pool()
 {
 	char[] read_buffer;
 	if (message != {})
@@ -34,7 +34,7 @@ fn String? read(Allocator allocator, String message = {}) => @pool()
 	else
 	{
 		read_buffer = load_stdin(tmem);
-		if (read_buffer.len == 0) return "";
+		if (read_buffer.len == 0) return INCOMPLETE_MESSAGE?;
 		log::verbose("reading from stdin");
 	}
 	log::debug("got message: %s", (String)read_buffer);
