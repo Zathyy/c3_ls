@@ -2,6 +2,7 @@ module lsp::msg_handler;
 import lsp::io_handler;
 import lsp::translator;
 
+import std::collections::maybe;
 import std::collections::object;
 
 struct LspRequest
@@ -14,7 +15,7 @@ struct LspRequest
 struct LspResponse
 {
 	String jsonrpc;
-	int* id;
+	Maybe{int} id;
 }
 struct LspNotification
 {

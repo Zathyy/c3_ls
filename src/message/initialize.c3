@@ -34,12 +34,12 @@ fn LspInitializeRequest? parse_message(LspMessage message)
 		self.clientInfo.name = client_info.get_string("name")
 			?? msg_handler::MESSAGE_MISSING_FIELDS?!;
 		self.clientInfo.version = client_info.get_string("version")
-			?? msg_handler::MESSAGE_MISSING_FIELDS?!;
+			?? "???";
 	}
 	else
 	{
+		self.clientInfo.name = "Unknown";
 		log::debug("`clientInfo` field missing");
-		return msg_handler::MESSAGE_MISSING_FIELDS?;
 	}
 	log::info("connected to %s (%s)", self.clientInfo.name, self.clientInfo.version);
 
