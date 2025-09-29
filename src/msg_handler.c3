@@ -26,7 +26,9 @@ enum LspAction
 {
 	NOTHING,
 	YOU_FORGOT_TO_RETURN_FROM_A_CASE,
+	SHUTDOWN,
 }
+
 faultdef
 	UNKNOWN_METHOD,
 	MESSAGE_MISSING_FIELDS,
@@ -50,6 +52,15 @@ fn LspAction? handle_message(LspMessage message)
 		return NOTHING;
 	case "initialized":
 		return NOTHING;
+	case "shutdown":
+		LspShutdownRequest shutdown = shutdown::parse_message(message)!;
+		log::debug("responding to `shutdown` message");
+		String shutdown_response = shutdown.response(tmem);
+		io_handler::write(shutdown_response);
+		log::debug("responded to `shutdown` message");
+		return NOTHING;
+	case "exit":
+		return SHUTDOWN;
 	default:
 		log::info("unknown method");
 		return UNKNOWN_METHOD?;
