@@ -17,22 +17,19 @@ struct LspInitializeRequest
 }
 fn LspInitializeRequest? parse_message(LspMessage message)
 {
-	LspInitializeRequest self;
-
-	self.request = msg_handler::get_request_struct(message)!;
-	if (try process_id = self.params.get_int("processId"))
+	LspInitializeRequest self = {
+		.request = msg_handler::get_request_struct(message)!,
+	};
+	if (!self.params.has_value)
 	{
-		self.processId = process_id;
-	}
-	else
-	{
-		log::debug("`processId` field missing");
+		log::info("params field not found (required in `initialize` method)");
 		return msg_handler::MESSAGE_MISSING_FIELDS?;
 	}
-	if (try client_info = self.params.get("clientInfo"))
+	Object* params = self.params.get()!!;
+	params.@try_get("get_int", "processId", self)!;
+	if (try client_info = params.get("clientInfo"))
 	{
-		self.clientInfo.name = client_info.get_string("name")
-			?? msg_handler::MESSAGE_MISSING_FIELDS?!;
+		client_info.@try_get("get_string", "name", self.clientInfo)!;
 		self.clientInfo.version = client_info.get_string("version")
 			?? "???";
 	}

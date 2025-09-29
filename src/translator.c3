@@ -3,6 +3,7 @@ import json;
 
 import std::io;
 import std::encoding::json;
+import std::collections::maybe;
 import std::collections::object;
 import std::core::string;
 
@@ -15,7 +16,7 @@ struct LspMessage (Printable)
 {
 	String rpc;
 	String method;
-	Object* params;
+	Maybe{Object*} params;
 
 	Allocator allocator;
 	Object* contents;
@@ -112,12 +113,11 @@ macro LspMessage? decode(Allocator allocator, String message) => @pool()
 	}
 	if (try params = json_obj.get("params"))
 	{
-		lsp_message.params = params;
+		lsp_message.params = maybe::value{Object*}(params);
 	}
 	else
 	{
-		log::debug("lsp message is missing params");
-		return INVALID_MESSAGE?;
+		log::verbose("lsp message is missing params");
 	}
 	return lsp_message;
 }
