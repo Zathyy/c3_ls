@@ -22,6 +22,11 @@ struct LspNotification
 	String method;
 }
 
+enum LspAction
+{
+	NOTHING,
+	YOU_FORGOT_TO_RETURN_FROM_A_CASE,
+}
 faultdef
 	UNKNOWN_METHOD,
 	MESSAGE_MISSING_FIELDS,
@@ -31,7 +36,7 @@ faultdef
 	@return? MESSAGE_MISSING_FIELDS
 	@return? NOT_LSP_REQUEST
 *>
-fn void? handle_message(LspMessage message)
+fn LspAction? handle_message(LspMessage message)
 {
 	log::info("handling message `%s`", message.method);
 	switch (message.method)
@@ -42,12 +47,14 @@ fn void? handle_message(LspMessage message)
 		String initialize_response = initialize.response(tmem);
 		io_handler::write(initialize_response);
 		log::debug("responded to `initialize` message");
+		return NOTHING;
 	case "initialized":
-		break;
+		return NOTHING;
 	default:
 		log::info("unknown method");
 		return UNKNOWN_METHOD?;
 	}
+	return YOU_FORGOT_TO_RETURN_FROM_A_CASE;
 }
 faultdef NOT_LSP_REQUEST;
 <*

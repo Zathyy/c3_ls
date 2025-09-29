@@ -12,7 +12,9 @@ fn int main(String[] args)
 	{
 		LspMessage? data = io_handler::read(tmem);
 		if (catch excuse = data) continue;
-		(void)msg_handler::handle_message(data);
+		LspAction? action = msg_handler::handle_message(data);
+		if (catch excuse = action)
+		{}
 	};
 	log::info("BYE!!!!");
 	return 0;
