@@ -33,9 +33,8 @@ struct LspShutdownResponse
 {
 	String jsonrpc;
 	int id;
-	LspShutdownResult result;
+	Maybe{void*} result;
 }
-alias LspShutdownResult = Maybe{void*};
 fn String LspShutdownRequest.response(&self, Allocator allocator) @inline
 {
 	LspShutdownResponse response = {

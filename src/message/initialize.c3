@@ -50,15 +50,14 @@ struct LspInitializeResponse
 {
 	String jsonrpc;
 	int id;
-	LspInitializeResult result;
-}
-struct LspInitializeResult
-{
-	LspServerCapabilities capabilities;
-	struct serverInfo
+	struct result
 	{
-		String name;
-		String version;
+		LspServerCapabilities capabilities;
+		struct serverInfo
+		{
+			String name;
+			String version;
+		}
 	}
 }
 struct LspServerCapabilities
