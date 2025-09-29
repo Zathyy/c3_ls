@@ -2,6 +2,7 @@ module lsp::msg_handler;
 import lsp::io_handler;
 import lsp::translator;
 
+import std::io;
 import std::collections::maybe;
 import std::collections::object;
 
@@ -12,16 +13,22 @@ struct LspRequest
 	String method;
 	Object* params;
 }
+fn usz? LspRequest.to_format(&self, Formatter* f) @dynamic
+	=> io::struct_to_format(*self, f, true);
 struct LspResponse
 {
 	String jsonrpc;
 	Maybe{int} id;
 }
+fn usz? LspResponse.to_format(&self, Formatter* f) @dynamic
+	=> io::struct_to_format(*self, f, true);
 struct LspNotification
 {
 	String jsonrpc;
 	String method;
 }
+fn usz? LspNotification.to_format(&self, Formatter* f) @dynamic
+	=> io::struct_to_format(*self, f, true);
 
 enum LspAction
 {
