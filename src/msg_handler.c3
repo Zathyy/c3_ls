@@ -89,3 +89,13 @@ fn LspRequest? get_request_struct(LspMessage message)
 		.params = message.params,
 	};
 }
+<*
+	@return "`LspNotification` struct formed from `message`"
+*>
+fn LspNotification? get_notification_struct(LspMessage message)
+{
+	return {
+		.jsonrpc = message.rpc,
+		.method = message.method,
+	};
+}
