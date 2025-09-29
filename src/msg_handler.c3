@@ -61,6 +61,16 @@ fn LspAction? handle_message(LspMessage message)
 		return NOTHING;
 	case "initialized":
 		return NOTHING;
+	case "textDocument/didOpen":
+		LspDidOpenTextDocumentNotification text_opened =
+			text_opened::parse_message(message)!;
+		log::debug("text opened: { %s, uri: \"%s\", languageId: \"%s\", version: %s }",
+			text_opened.notif,
+			text_opened.params.uri,
+			text_opened.params.languageId,
+			text_opened.params.version,
+		);
+		return NOTHING;
 	case "shutdown":
 		LspShutdownRequest shutdown = shutdown::parse_message(message)!;
 		log::debug("responding to `shutdown` message");
