@@ -49,21 +49,28 @@ macro String encode(expr, Allocator allocator, int indent = 0) => @pool()
 	);
 }
 
+struct IoDecodeResult
+{
+	LspMessage message;
+	usz len;
+}
 <*
 	Decode JSONRPC message
 	@param [in] message
-	@return "LSP message allocated with `allocator`"
+	@return "LSP message allocated with `allocator`, as well as length of whole"
+		"message"
 	@return? INCOMPLETE_JSON
 	@return? INVALID_MESSAGE
 *>
-macro LspMessage? decode(Allocator allocator, String message) => @pool()
+macro IoDecodeResult? decode(Allocator allocator, String message) => @pool()
 {
 	const String HEADER_START = "Content-Length: ";
-	if (message.len < HEADER_START.len + "\r\n\r\n".len + 1)
+	const String ESCAPE = "\r\n\r\n";
+	if (message.len < HEADER_START.len + ESCAPE.len + 1)
 	{
 		log::verbose("invalid message: too short");
 	}
-	String[] split = message.split(tmem, "\r\n\r\n");
+	String[] split = message.split(tmem, ESCAPE);
 	if (split.len != 2)
 	{
 		log::verbose("failed to split message %s", message);
@@ -71,15 +78,21 @@ macro LspMessage? decode(Allocator allocator, String message) => @pool()
 	}
 
 	String header = split[0];
-	String content_length_str = header["Content-Length: ".len..];
+	String content_length_str = header[HEADER_START.len..];
 	usz content_length @noinit;
 	if (catch @try(content_length, content_length_str.to_integer(usz)))
 	{
 		log::verbose("failed to read content length");
 		return INCOMPLETE_JSON?;
 	}
+	usz message_len = header.len + ESCAPE.len + content_length;
+	if (split[1].len < content_length)
+	{
+		log::verbose("json message smaller than what header says");
+		return INCOMPLETE_JSON?;
+	}
 
-	String json_message = split[1];
+	String json_message = split[1][:content_length];
 	Object* json_obj @noinit;
 	if (catch @try(json_obj, json::parse_string(allocator, json_message)))
 	{
@@ -119,5 +132,8 @@ macro LspMessage? decode(Allocator allocator, String message) => @pool()
 	{
 		log::verbose("lsp message is missing params");
 	}
-	return lsp_message;
+	return {
+		.message = lsp_message,
+		.len = message_len
+	};
 }

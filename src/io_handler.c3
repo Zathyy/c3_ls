@@ -68,10 +68,10 @@ fn LspMessage? read(Allocator allocator, String message = {}) => @pool()
 		log::debug("full message: %s", prev_buffer);
 	}
 
-	LspMessage? decoded_message = translator::decode(allocator, prev_buffer);
-	if (catch excuse = decoded_message)
+	IoDecodeResult? decode_result = translator::decode(allocator, prev_buffer);
+	if (catch excuse = decode_result)
 	{
-		log::verbose("failed to decoded message: %s", excuse);
+		log::verbose("failed to decode message: %s", excuse);
 		switch (excuse)
 		{
 		case translator::INVALID_MESSAGE:
@@ -82,10 +82,20 @@ fn LspMessage? read(Allocator allocator, String message = {}) => @pool()
 	else
 	{
 		log::verbose("decoded message successfully");
-		mem::free(prev_buffer);
-		prev_buffer = {};
+		if (decode_result.len < prev_buffer.len)
+		{
+			log::verbose("%d bytes remain unhandled; saving", prev_buffer.len - decode_result.len);
+			char* pbptr = prev_buffer;
+			defer mem::free(pbptr);
+			prev_buffer = (String)allocator::clone_slice(mem, (char[])prev_buffer[decode_result.len..]);
+		}
+		else
+		{
+			mem::free(prev_buffer);
+			prev_buffer = {};
+		}
 	}
-	return decoded_message;
+	return decode_result.message;
 }
 <*
 	@param [in] message
