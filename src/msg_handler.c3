@@ -35,6 +35,7 @@ enum LspActionType
 {
 	NOTHING,
 	OPEN_FILE,
+	CLOSE_FILE,
 	UNHANDLED_CASE,
 	SHUTDOWN,
 }
@@ -83,6 +84,18 @@ fn LspAction? handle_message(LspMessage message, Allocator allocator)
 			{
 				.uri = text_opened.params.uri.copy(allocator),
 				.text = text_opened.params.text.copy(allocator),
+			})
+		};
+	case "textDocument/didClose":
+		LspDidCloseTextDocumentNotification text_closed =
+			text_closed::parse_message(message)!;
+		log::debug("text closed: { %s, uri: \"%s\", languageId: \"%s\", version: %s }",
+			text_closed.notif,
+			text_closed.params.uri,
+		);
+		return { CLOSE_FILE, allocator::new(allocator, LspActionDataCloseFile,
+			{
+				.uri = text_closed.params.uri.copy(allocator),
 			})
 		};
 	case "shutdown":
@@ -170,5 +183,14 @@ fn void LspActionDataOpenFile.free(&self) @dynamic
 {
 	mem::free(self.uri);
 	mem::free(self.text);
+	mem::free(self);
+}
+struct LspActionDataCloseFile (LspActionData)
+{
+	String uri;
+}
+fn void LspActionDataCloseFile.free(&self) @dynamic
+{
+	mem::free(self.uri);
 	mem::free(self);
 }
