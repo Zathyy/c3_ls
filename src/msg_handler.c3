@@ -31,24 +31,32 @@ struct LspNotification
 fn usz? LspNotification.to_format(&self, Formatter* f) @dynamic
 	=> io::struct_to_format(*self, f, true);
 
-enum LspAction
+enum LspActionType
 {
 	NOTHING,
 	OPEN_FILE,
-	YOU_FORGOT_TO_RETURN_FROM_A_CASE,
+	UNHANDLED_CASE,
 	SHUTDOWN,
+}
+/// definitions at end of file
+interface LspActionData
+{
+	fn void free();
+}
+struct LspAction
+{
+	LspActionType type;
+	LspActionData data;
 }
 
 faultdef
-	UNKNOWN_METHOD,
 	MESSAGE_MISSING_FIELDS,
 ;
 <*
-	@return? UNKNOWN_METHOD
 	@return? MESSAGE_MISSING_FIELDS
 	@return? NOT_LSP_REQUEST
 *>
-fn LspAction? handle_message(LspMessage message)
+fn LspAction? handle_message(LspMessage message, Allocator allocator)
 {
 	log::info("handling message `%s`", message.method);
 	switch (message.method)
@@ -59,9 +67,9 @@ fn LspAction? handle_message(LspMessage message)
 		String initialize_response = initialize.response(tmem);
 		io_handler::write(initialize_response);
 		log::debug("responded to `initialize` message");
-		return NOTHING;
+		return { NOTHING, LSP_ACTION_DATA_EMPTY };
 	case "initialized":
-		return NOTHING;
+		return { NOTHING, LSP_ACTION_DATA_EMPTY };
 	case "textDocument/didOpen":
 		LspDidOpenTextDocumentNotification text_opened =
 			text_opened::parse_message(message)!;
@@ -71,21 +79,24 @@ fn LspAction? handle_message(LspMessage message)
 			text_opened.params.languageId,
 			text_opened.params.version,
 		);
-		return OPEN_FILE;
+		return { OPEN_FILE, allocator::new(allocator, LspActionDataOpenFile,
+			{
+				.uri = text_opened.params.uri.copy(allocator),
+				.text = text_opened.params.text.copy(allocator),
+			})
+		};
 	case "shutdown":
 		LspShutdownRequest shutdown = shutdown::parse_message(message)!;
 		log::debug("responding to `shutdown` message");
 		String shutdown_response = shutdown.response(tmem);
 		io_handler::write(shutdown_response);
 		log::debug("responded to `shutdown` message");
-		return NOTHING;
+		return { NOTHING, LSP_ACTION_DATA_EMPTY };
 	case "exit":
-		return SHUTDOWN;
-	default:
-		log::info("unknown method");
-		return UNKNOWN_METHOD?;
+		return { SHUTDOWN, LSP_ACTION_DATA_EMPTY };
 	}
-	return YOU_FORGOT_TO_RETURN_FROM_A_CASE;
+	log::info("unhandled case");
+		return { UNHANDLED_CASE, LSP_ACTION_DATA_EMPTY };
 }
 faultdef NOT_LSP_REQUEST;
 <*
@@ -142,4 +153,22 @@ macro Object.@try_get(&self, String $get_func, String $field, #variable = EMPTY_
 		return MESSAGE_MISSING_FIELDS?;
 	}
 	$endif
+}
+
+/// `LspActionData` definitions
+// can be used for any action that doesnt have any data
+struct LspActionDataEmpty (LspActionData) { char dummy; }
+fn void LspActionDataEmpty.free(&self) @dynamic {}
+const LspActionData LSP_ACTION_DATA_EMPTY = &&(LspActionDataEmpty){};
+
+struct LspActionDataOpenFile (LspActionData)
+{
+	String uri;
+	String text;
+}
+fn void LspActionDataOpenFile.free(&self) @dynamic
+{
+	mem::free(self.uri);
+	mem::free(self.text);
+	mem::free(self);
 }

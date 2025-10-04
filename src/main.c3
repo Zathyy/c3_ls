@@ -12,12 +12,12 @@ fn int main(String[] args)
 	{
 		LspMessage? data = io_handler::read(tmem);
 		if (catch excuse = data) continue;
-		LspAction? action = msg_handler::handle_message(data);
+		LspAction? action = msg_handler::handle_message(data, tmem);
 		if (catch excuse = action)
 		{}
 		else
 		{
-			switch (action)
+			switch (action.type)
 			{
 			case SHUTDOWN:
 				break LOOP;
