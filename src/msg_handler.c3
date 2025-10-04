@@ -34,6 +34,7 @@ fn usz? LspNotification.to_format(&self, Formatter* f) @dynamic
 enum LspAction
 {
 	NOTHING,
+	OPEN_FILE,
 	YOU_FORGOT_TO_RETURN_FROM_A_CASE,
 	SHUTDOWN,
 }
@@ -70,7 +71,7 @@ fn LspAction? handle_message(LspMessage message)
 			text_opened.params.languageId,
 			text_opened.params.version,
 		);
-		return NOTHING;
+		return OPEN_FILE;
 	case "shutdown":
 		LspShutdownRequest shutdown = shutdown::parse_message(message)!;
 		log::debug("responding to `shutdown` message");
