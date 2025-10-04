@@ -71,7 +71,7 @@ macro IoDecodeResult? decode(Allocator allocator, String message) => @pool()
 		log::verbose("invalid message: too short");
 	}
 	String[] split = message.split(tmem, ESCAPE);
-	if (split.len != 2)
+	if (split.len < 2)
 	{
 		log::verbose("failed to split message %s", message);
 		return INCOMPLETE_JSON?;
@@ -100,7 +100,7 @@ macro IoDecodeResult? decode(Allocator allocator, String message) => @pool()
 		return INCOMPLETE_JSON?;
 	}
 
-	log::verbose("successfully read message");
+	log::verbose("successfully read message %s", json_message);
 
 	LspMessage lsp_message = {
 		.allocator = allocator,
