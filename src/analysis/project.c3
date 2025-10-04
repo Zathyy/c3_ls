@@ -49,3 +49,10 @@ fn void LspProject.open_file(&self, String uri, String text)
 	assert(!self.files.has_key(uri));
 	self.files[uri] = ((LspFile){}).new(self.allocator, text);
 }
+fn void LspProject.close_file(&self, String uri)
+{
+	log::debug("closing file %s", uri);
+	assert(self.files.has_key(uri));
+	(&self.files[uri]).free();
+	self.files.remove(uri);
+}
