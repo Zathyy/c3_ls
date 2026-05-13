@@ -15,6 +15,7 @@ struct LspInitializeRequest
 		String version;
 	}
 }
+
 fn LspInitializeRequest? parse_message(LspMessage message)
 {
 	LspInitializeRequest self = {

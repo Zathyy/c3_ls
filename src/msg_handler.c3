@@ -6,6 +6,10 @@ import std::io;
 import std::collections::maybe;
 import std::collections::object;
 
+faultdef
+	MESSAGE_MISSING_FIELDS,
+	NOT_LSP_REQUEST;
+
 struct LspRequest
 {
 	String jsonrpc;
@@ -13,23 +17,25 @@ struct LspRequest
 	String method;
 	Maybe{Object*} params;
 }
-fn usz? LspRequest.to_format(&self, Formatter* f) @dynamic
-	=> io::struct_to_format(*self, f, true);
+
+fn usz? LspRequest.to_format(&self, Formatter* f) @dynamic => io::struct_to_format(*self, f, true);
+
 struct LspResponse
 {
 	String jsonrpc;
 	Maybe{int} id;
 }
-fn usz? LspResponse.to_format(&self, Formatter* f) @dynamic
-	=> io::struct_to_format(*self, f, true);
+
+fn usz? LspResponse.to_format(&self, Formatter* f) @dynamic => io::struct_to_format(*self, f, true);
+
 struct LspNotification
 {
 	String jsonrpc;
 	String method;
 	Maybe{Object*} params;
 }
-fn usz? LspNotification.to_format(&self, Formatter* f) @dynamic
-	=> io::struct_to_format(*self, f, true);
+
+fn usz? LspNotification.to_format(&self, Formatter* f) @dynamic => io::struct_to_format(*self, f, true);
 
 enum LspActionType
 {
@@ -39,20 +45,19 @@ enum LspActionType
 	UNHANDLED_CASE,
 	SHUTDOWN,
 }
+
 /// definitions at end of file
 interface LspActionData
 {
 	fn void free();
 }
+
 struct LspAction
 {
 	LspActionType type;
 	LspActionData data;
 }
 
-faultdef
-	MESSAGE_MISSING_FIELDS,
-;
 <*
 	@return? MESSAGE_MISSING_FIELDS
 	@return? NOT_LSP_REQUEST
@@ -60,18 +65,19 @@ faultdef
 fn LspAction? handle_message(LspMessage message, Allocator allocator)
 {
 	log::info("handling message `%s`", message.method);
+
 	switch (message.method)
 	{
-	case "initialize":
+	case INITIALIZE:
 		LspInitializeRequest initialize = initialize::parse_message(message)!;
 		log::debug("responding to `initialize` message");
 		String initialize_response = initialize.response(tmem);
 		io_handler::write(initialize_response);
 		log::debug("responded to `initialize` message");
 		return { NOTHING, LSP_ACTION_DATA_EMPTY };
-	case "initialized":
+	case INITIALIZED:
 		return { NOTHING, LSP_ACTION_DATA_EMPTY };
-	case "textDocument/didOpen":
+	case DID_OPEN:
 		LspDidOpenTextDocumentNotification text_opened =
 			text_opened::parse_message(message)!;
 		log::debug("text opened: { %s, uri: \"%s\", languageId: \"%s\", version: %s }",
@@ -86,7 +92,7 @@ fn LspAction? handle_message(LspMessage message, Allocator allocator)
 				.text = text_opened.params.text.copy(allocator),
 			})
 		};
-	case "textDocument/didClose":
+	case DID_CLOSE:
 		LspDidCloseTextDocumentNotification text_closed =
 			text_closed::parse_message(message)!;
 		log::debug("text closed: { %s, uri: \"%s\", languageId: \"%s\", version: %s }",
@@ -98,20 +104,20 @@ fn LspAction? handle_message(LspMessage message, Allocator allocator)
 				.uri = text_closed.params.uri.copy(allocator),
 			})
 		};
-	case "shutdown":
+	case SHUTDOWN:
 		LspShutdownRequest shutdown = shutdown::parse_message(message)!;
 		log::debug("responding to `shutdown` message");
 		String shutdown_response = shutdown.response(tmem);
 		io_handler::write(shutdown_response);
 		log::debug("responded to `shutdown` message");
 		return { NOTHING, LSP_ACTION_DATA_EMPTY };
-	case "exit":
+	case EXIT:
 		return { SHUTDOWN, LSP_ACTION_DATA_EMPTY };
 	}
 	log::info("unhandled case");
 		return { UNHANDLED_CASE, LSP_ACTION_DATA_EMPTY };
 }
-faultdef NOT_LSP_REQUEST;
+
 <*
 	@return "`LspRequest` struct formed from `message`"
 	@return? NOT_LSP_REQUEST: "Couldn't fetch required fields"
@@ -125,6 +131,7 @@ fn LspRequest? get_request_struct(LspMessage message)
 		.params = message.params,
 	};
 }
+
 <*
 	@return "`LspNotification` struct formed from `message`"
 *>
@@ -179,16 +186,19 @@ struct LspActionDataOpenFile (LspActionData)
 	String uri;
 	String text;
 }
+
 fn void LspActionDataOpenFile.free(&self) @dynamic
 {
 	mem::free(self.uri);
 	mem::free(self.text);
 	mem::free(self);
 }
+
 struct LspActionDataCloseFile (LspActionData)
 {
 	String uri;
 }
+
 fn void LspActionDataCloseFile.free(&self) @dynamic
 {
 	mem::free(self.uri);

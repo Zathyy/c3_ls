@@ -15,12 +15,13 @@ faultdef
 struct LspMessage (Printable)
 {
 	String rpc;
-	String method;
+	MessageKind method;
 	Maybe{Object*} params;
 
 	Allocator allocator;
 	Object* contents;
 }
+
 fn bool LspMessage.is_initialized(self) @inline => self.contents != null;
 fn usz? LspMessage.to_format(&self, Formatter* formatter) @dynamic
 	=> formatter.printf("%s", self.contents);
@@ -74,7 +75,7 @@ macro IoDecodeResult? decode(Allocator allocator, String message) => @pool()
 	if (split.len < 2)
 	{
 		log::verbose("failed to split message %s", message);
-		return INCOMPLETE_JSON?;
+		return INCOMPLETE_JSON~;
 	}
 
 	String header = split[0];
@@ -89,7 +90,7 @@ macro IoDecodeResult? decode(Allocator allocator, String message) => @pool()
 	if (split[1].len < content_length)
 	{
 		log::verbose("json message smaller than what header says");
-		return INCOMPLETE_JSON?;
+		return INCOMPLETE_JSON~;
 	}
 
 	String json_message = split[1][:content_length];
@@ -97,7 +98,7 @@ macro IoDecodeResult? decode(Allocator allocator, String message) => @pool()
 	if (catch @try(json_obj, json::parse_string(allocator, json_message)))
 	{
 		log::verbose("failed to read json contents");
-		return INCOMPLETE_JSON?;
+		return INCOMPLETE_JSON~;
 	}
 
 	log::verbose("successfully read message %s", json_message);
@@ -113,16 +114,21 @@ macro IoDecodeResult? decode(Allocator allocator, String message) => @pool()
 	else
 	{
 		log::debug("lsp message is missing rpc");
-		return INVALID_MESSAGE?;
+		return INVALID_MESSAGE~;
 	}
 	if (try method = json_obj.get_string("method"))
 	{
-		lsp_message.method = method;
+		MessageKind? kind = MessageKind::lookup_field(name, method);
+		if (catch kind)
+		{
+			kind = UNKNOWN;
+		}
+		lsp_message.method = kind;
 	}
 	else
 	{
 		log::debug("lsp message is missing method");
-		return INVALID_MESSAGE?;
+		return INVALID_MESSAGE~;
 	}
 	if (try params = json_obj.get("params"))
 	{
@@ -132,6 +138,7 @@ macro IoDecodeResult? decode(Allocator allocator, String message) => @pool()
 	{
 		log::verbose("lsp message is missing params");
 	}
+	
 	return {
 		.message = lsp_message,
 		.len = message_len
