@@ -3,8 +3,12 @@ import lsp::msg_handler @norecurse;
 import lsp::translator;
 
 import std::io;
-import std::collections::object;
+// import std::collections::object;
 
+import dessert;
+import derive;
+
+$expand(derive(LspInitializeRequest::name, dessert));
 struct LspInitializeRequest
 {
 	inline LspRequest request;
@@ -24,7 +28,7 @@ fn LspInitializeRequest? parse_message(LspMessage message)
 	if (!self.params.has_value)
 	{
 		log::info("params field not found (required in `initialize` method)");
-		return msg_handler::MESSAGE_MISSING_FIELDS?;
+		return msg_handler::MESSAGE_MISSING_FIELDS~;
 	}
 	Object* params = self.params.get()!!;
 	params.@try_get("get_int", "processId", self)!;
@@ -44,6 +48,7 @@ fn LspInitializeRequest? parse_message(LspMessage message)
 	return self;
 }
 
+$expand(derive(LspInitializeResponse::name, dessert));
 struct LspInitializeResponse
 {
 	String jsonrpc;
@@ -58,6 +63,8 @@ struct LspInitializeResponse
 		}
 	}
 }
+
+$expand(derive(LspServerCapabilities::name, dessert));
 struct LspServerCapabilities
 {
 	int textDocumentSync;

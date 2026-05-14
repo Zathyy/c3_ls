@@ -6,10 +6,15 @@ import std::io;
 import std::collections::maybe;
 import std::collections::object;
 
+import dessert;
+import derive;
+
+$expand(derive(LspShutdownRequest::name, dessert));
 struct LspShutdownRequest
 {
 	inline LspRequest request;
 }
+
 fn LspShutdownRequest? parse_message(LspMessage message)
 {
 	LspShutdownRequest self = {
@@ -19,6 +24,7 @@ fn LspShutdownRequest? parse_message(LspMessage message)
 	return self;
 }
 
+$expand(derive(LspShutdownResponse::name, dessert));
 struct LspShutdownResponse
 {
 	String jsonrpc;

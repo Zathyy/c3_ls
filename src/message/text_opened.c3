@@ -6,7 +6,11 @@ import std::io;
 import std::collections::maybe;
 import std::collections::object;
 
-struct LspDidOpenTextDocumentNotification (Printable)
+import dessert;
+import derive;
+
+$expand(derive(LspDidOpenTextDocumentNotification::name, dessert));
+struct LspDidOpenTextDocumentNotification
 {
 	inline LspNotification notif;
 	struct params
@@ -17,8 +21,10 @@ struct LspDidOpenTextDocumentNotification (Printable)
 		String text;
 	}
 }
-fn usz? LspDidOpenTextDocumentNotification.to_format(&self, Formatter* f) @dynamic
-	=> io::struct_to_format(*self, f, true);
+
+// fn usz? LspDidOpenTextDocumentNotification.to_format(&self, Formatter* f) @dynamic
+// 	=> io::struct_to_format(*self, f, true);
+
 fn LspDidOpenTextDocumentNotification? parse_message(LspMessage message)
 {
 	LspDidOpenTextDocumentNotification self = {
@@ -27,7 +33,7 @@ fn LspDidOpenTextDocumentNotification? parse_message(LspMessage message)
 	if (!self.notif.params.has_value)
 	{
 		log::info("params field not found (required in `textDocument/didOpen` method)");
-		return msg_handler::MESSAGE_MISSING_FIELDS?;
+		return msg_handler::MESSAGE_MISSING_FIELDS~;
 	}
 	Object* textDocument_field = self.notif.params.get().@try_get("get", "textDocument")!;
 	textDocument_field.@try_get("get_string", "uri", self.params)!;

@@ -15,8 +15,8 @@ String prev_buffer;
 *>
 fn void init()
 {
-	CInt fd_flags = os::fcntl(libc::STDIN_FD, os::F_GETFL, 0);
-	os::fcntl(libc::STDIN_FD, os::F_SETFL, fd_flags | os::O_NONBLOCK);
+	int fd_flags = os::fcntl((NativeSocket) libc::STDIN_FD, os::F_GETFL, 0);
+	os::fcntl((NativeSocket) libc::STDIN_FD, os::F_SETFL, fd_flags | os::O_NONBLOCK);
 }
 <*
 	Free incomplete message buffer
@@ -44,12 +44,12 @@ fn LspMessage? read(Allocator allocator, String message = {}) => @pool()
 	if (message != {})
 	{
 		log::verbose("reading from function param");
-		read_buffer = allocator::clone_slice(tmem, (char[])message);
+		read_buffer = alloc::clone_slice(tmem, (char[])message);
 	}
 	else
 	{
 		read_buffer = load_stdin(tmem);
-		if (read_buffer.len == 0) return NO_NEW_DATA?;
+		if (read_buffer.len == 0) return NO_NEW_DATA~;
 		log::verbose("reading from stdin");
 	}
 	log::debug("got message: %s", (String)read_buffer);
@@ -57,7 +57,7 @@ fn LspMessage? read(Allocator allocator, String message = {}) => @pool()
 	if (prev_buffer.ptr == null)
 	{
 		log::verbose("completely new message");
-		prev_buffer = (String)allocator::clone_slice(mem, read_buffer);
+		prev_buffer = (String)alloc::clone_slice(mem, read_buffer);
 	}
 	else
 	{
@@ -87,7 +87,7 @@ fn LspMessage? read(Allocator allocator, String message = {}) => @pool()
 			log::verbose("%d bytes remain unhandled; saving", prev_buffer.len - decode_result.len);
 			char* pbptr = prev_buffer;
 			defer mem::free(pbptr);
-			prev_buffer = (String)allocator::clone_slice(mem, (char[])prev_buffer[decode_result.len..]);
+			prev_buffer = (String)alloc::clone_slice(mem, (char[])prev_buffer[decode_result.len..]);
 		}
 		else
 		{
@@ -109,11 +109,11 @@ fn void write(String message) @inline
 const STDIN_ALLOC_LEN @local = 1024;
 fn char[] load_stdin(Allocator allocator) @local
 {
-	usz len;
-	char[] result = allocator::new_array(allocator, char, 1)[:0];
+	sz len;
+	char[] result = alloc::new_array(allocator, char, 1)[:0];
 	while (true)
 	{
-		char[] tmp_read = allocator::new_array(tmem, char, STDIN_ALLOC_LEN);
+		char[] tmp_read = alloc::new_array(tmem, char, STDIN_ALLOC_LEN);
 		{
 			if (try tmp_len = io::stdin().read(tmp_read) && tmp_len > 0)
 			{
@@ -125,7 +125,7 @@ fn char[] load_stdin(Allocator allocator) @local
 			}
 		}
 		char[] concatenated = array::concat(allocator, result, tmp_read[:len]);
-		allocator::free(allocator, result);
+		alloc::free(allocator, result);
 		result = concatenated;
 	}
 	return result;

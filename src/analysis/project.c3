@@ -3,16 +3,21 @@ module lsp::analysis;
 import std::io;
 import std::collections::map;
 
+import dessert;
+import derive;
+
+$expand(derive(LspFile::name, dessert));
 struct LspFile
 {
 	int version;
 	String text;
 }
-fn usz? LspFile.to_format(&self, Formatter* f) @dynamic
-	=> io::struct_to_format(*self, f, true);
+// fn usz? LspFile.to_format(&self, Formatter* f) @dynamic
+// 	=> io::struct_to_format(*self, f, true);
+
 fn LspFile* LspFile.init(&self, Allocator allocator, String text)
 {
-	self = allocator::new(allocator, LspFile, {
+	self = alloc::new(allocator, LspFile, {
 		.version = 0,
 		.text = text.copy(allocator),
 	});

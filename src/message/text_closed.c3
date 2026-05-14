@@ -6,7 +6,11 @@ import std::io;
 import std::collections::maybe;
 import std::collections::object;
 
-struct LspDidCloseTextDocumentNotification (Printable)
+import dessert;
+import derive;
+
+$expand(derive(LspDidCloseTextDocumentNotification::name, dessert::serialize));
+struct LspDidCloseTextDocumentNotification
 {
 	inline LspNotification notif;
 	struct params
@@ -15,10 +19,10 @@ struct LspDidCloseTextDocumentNotification (Printable)
 	}
 }
 
-fn usz? LspDidCloseTextDocumentNotification.to_format(&self, Formatter* f) @dynamic
-{	
-	io::struct_to_format(*self, f, true);
-}
+// fn usz? LspDidCloseTextDocumentNotification.to_format(&self, Formatter* f) @dynamic
+// {	
+// 	io::struct_to_format(*self, f, true);
+// }
 
 fn LspDidCloseTextDocumentNotification? parse_message(LspMessage message)
 {
@@ -29,7 +33,7 @@ fn LspDidCloseTextDocumentNotification? parse_message(LspMessage message)
 	if (!self.notif.params.has_value)
 	{
 		log::info("params field not found (required in `textDocument/didClose` method)");
-		return msg_handler::MESSAGE_MISSING_FIELDS?;
+		return msg_handler::MESSAGE_MISSING_FIELDS~;
 	}
 
 	Object* textDocument_field = self.notif.params.get().@try_get("get", "textDocument")!;

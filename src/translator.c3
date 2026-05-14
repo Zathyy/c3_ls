@@ -1,5 +1,4 @@
 module lsp::translator;
-import json;
 
 import std::io;
 import std::encoding::json;
@@ -7,24 +6,29 @@ import std::collections::maybe;
 import std::collections::object;
 import std::core::string;
 
+import dessert;
+import derive;
+
 faultdef
 	INVALID_MESSAGE,
 	INCOMPLETE_JSON,
 ;
 
-struct LspMessage (Printable)
+$expand(derive(LspMessage::name, dessert));
+struct LspMessage
 {
 	String rpc;
 	MessageKind method;
 	Maybe{Object*} params;
 
-	Allocator allocator;
+	Allocator allocator @DField({.skip = true});
 	Object* contents;
 }
 
 fn bool LspMessage.is_initialized(self) @inline => self.contents != null;
-fn usz? LspMessage.to_format(&self, Formatter* formatter) @dynamic
-	=> formatter.printf("%s", self.contents);
+// fn sz? LspMessage.to_format(&self, Formatter* formatter) @dynamic
+	// => formatter.printf("%s", self.contents);
+
 fn void LspMessage.free(&self)
 {
 	if (self.contents != null) self.contents.free();
@@ -37,9 +41,9 @@ fn void LspMessage.free(&self)
 *>
 macro String encode(expr, Allocator allocator, int indent = 0) => @pool()
 {
-	log::verbose("encoding message type %s", $typeof(expr).nameof);
+	log::verbose("encoding message type %s", $Typeof(expr)::name);
 	// TODO: handle encoding error
-	String expr_json = json::to_json(expr, tmem, indent)!!;
+	String expr_json = ser::serialize(&&json::string_serializer(), expr)!!;
 	usz expr_size = expr_json.len;
 	log::verbose("message size: %d", expr_size);
 
@@ -84,7 +88,7 @@ macro IoDecodeResult? decode(Allocator allocator, String message) => @pool()
 	if (catch @try(content_length, content_length_str.to_integer(usz)))
 	{
 		log::verbose("failed to read content length");
-		return INCOMPLETE_JSON?;
+		return INCOMPLETE_JSON~;
 	}
 	usz message_len = header.len + ESCAPE.len + content_length;
 	if (split[1].len < content_length)

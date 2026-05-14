@@ -6,37 +6,44 @@ import std::io;
 import std::collections::maybe;
 import std::collections::object;
 
+import dessert;
+import derive;
+
 faultdef
 	MESSAGE_MISSING_FIELDS,
 	NOT_LSP_REQUEST;
 
+$expand(derive(LspRequest::name, dessert));
 struct LspRequest
 {
 	String jsonrpc;
 	int id;
-	String method;
+	MessageKind method;
 	Maybe{Object*} params;
 }
 
-fn usz? LspRequest.to_format(&self, Formatter* f) @dynamic => io::struct_to_format(*self, f, true);
+// fn usz? LspRequest.to_format(&self, Formatter* f) @dynamic => io::struct_to_format(*self, f, true);
 
+$expand(derive(LspResponse::name, dessert));
 struct LspResponse
 {
 	String jsonrpc;
 	Maybe{int} id;
 }
 
-fn usz? LspResponse.to_format(&self, Formatter* f) @dynamic => io::struct_to_format(*self, f, true);
+// fn usz? LspResponse.to_format(&self, Formatter* f) @dynamic => io::struct_to_format(*self, f, true);
 
+$expand(derive(LspNotification::name, dessert));
 struct LspNotification
 {
 	String jsonrpc;
-	String method;
+	MessageKind method;
 	Maybe{Object*} params;
 }
 
-fn usz? LspNotification.to_format(&self, Formatter* f) @dynamic => io::struct_to_format(*self, f, true);
+// fn usz? LspNotification.to_format(&self, Formatter* f) @dynamic => io::struct_to_format(*self, f, true);
 
+$expand(derive(LspActionType::name, dessert));
 enum LspActionType
 {
 	NOTHING,
@@ -64,58 +71,60 @@ struct LspAction
 *>
 fn LspAction? handle_message(LspMessage message, Allocator allocator)
 {
-	log::info("handling message `%s`", message.method);
+  log::info("handling message `%s`", message.method);
 
-	switch (message.method)
-	{
-	case INITIALIZE:
-		LspInitializeRequest initialize = initialize::parse_message(message)!;
-		log::debug("responding to `initialize` message");
-		String initialize_response = initialize.response(tmem);
-		io_handler::write(initialize_response);
-		log::debug("responded to `initialize` message");
-		return { NOTHING, LSP_ACTION_DATA_EMPTY };
-	case INITIALIZED:
-		return { NOTHING, LSP_ACTION_DATA_EMPTY };
-	case DID_OPEN:
-		LspDidOpenTextDocumentNotification text_opened =
-			text_opened::parse_message(message)!;
-		log::debug("text opened: { %s, uri: \"%s\", languageId: \"%s\", version: %s }",
-			text_opened.notif,
-			text_opened.params.uri,
-			text_opened.params.languageId,
-			text_opened.params.version,
-		);
-		return { OPEN_FILE, allocator::new(allocator, LspActionDataOpenFile,
-			{
-				.uri = text_opened.params.uri.copy(allocator),
-				.text = text_opened.params.text.copy(allocator),
-			})
-		};
-	case DID_CLOSE:
-		LspDidCloseTextDocumentNotification text_closed =
-			text_closed::parse_message(message)!;
-		log::debug("text closed: { %s, uri: \"%s\", languageId: \"%s\", version: %s }",
-			text_closed.notif,
-			text_closed.params.uri,
-		);
-		return { CLOSE_FILE, allocator::new(allocator, LspActionDataCloseFile,
-			{
-				.uri = text_closed.params.uri.copy(allocator),
-			})
-		};
-	case SHUTDOWN:
-		LspShutdownRequest shutdown = shutdown::parse_message(message)!;
-		log::debug("responding to `shutdown` message");
-		String shutdown_response = shutdown.response(tmem);
-		io_handler::write(shutdown_response);
-		log::debug("responded to `shutdown` message");
-		return { NOTHING, LSP_ACTION_DATA_EMPTY };
-	case EXIT:
-		return { SHUTDOWN, LSP_ACTION_DATA_EMPTY };
-	}
-	log::info("unhandled case");
-		return { UNHANDLED_CASE, LSP_ACTION_DATA_EMPTY };
+  switch (message.method)
+  {
+    case INITIALIZE:
+      LspInitializeRequest initialize = initialize::parse_message(message)!;
+      log::debug("responding to `initialize` message");
+      String initialize_response = initialize.response(tmem);
+      io_handler::write(initialize_response);
+      log::debug("responded to `initialize` message");
+      return { NOTHING, LSP_ACTION_DATA_EMPTY };
+    case INITIALIZED:
+      return { NOTHING, LSP_ACTION_DATA_EMPTY };
+    case DID_OPEN:
+      LspDidOpenTextDocumentNotification text_opened =
+        text_opened::parse_message(message)!;
+      log::debug("text opened: { %s, uri: \"%s\", languageId: \"%s\", version: %s }",
+          text_opened.notif,
+          text_opened.params.uri,
+          text_opened.params.languageId,
+          text_opened.params.version,
+          );
+      return { OPEN_FILE, alloc::new(allocator, LspActionDataOpenFile,
+          {
+          .uri = text_opened.params.uri.copy(allocator),
+          .text = text_opened.params.text.copy(allocator),
+          })
+      };
+    case DID_CLOSE:
+      LspDidCloseTextDocumentNotification text_closed =
+        text_closed::parse_message(message)!;
+      log::debug("text closed: { %s, uri: \"%s\", languageId: \"%s\", version: %s }",
+          text_closed.notif,
+          text_closed.params.uri,
+          );
+      return { CLOSE_FILE, alloc::new(allocator, LspActionDataCloseFile,
+          {
+          .uri = text_closed.params.uri.copy(allocator),
+          })
+      };
+    case SHUTDOWN:
+      LspShutdownRequest shutdown = shutdown::parse_message(message)!;
+      log::debug("responding to `shutdown` message");
+      String shutdown_response = shutdown.response(tmem);
+      io_handler::write(shutdown_response);
+      log::debug("responded to `shutdown` message");
+      return { NOTHING, LSP_ACTION_DATA_EMPTY };
+    case EXIT:
+      return { SHUTDOWN, LSP_ACTION_DATA_EMPTY };
+
+    default:
+  }
+  log::info("unhandled case");
+  return { UNHANDLED_CASE, LSP_ACTION_DATA_EMPTY };
 }
 
 <*
@@ -126,7 +135,7 @@ fn LspRequest? get_request_struct(LspMessage message)
 {
 	return {
 		.jsonrpc = message.rpc,
-		.id = message.contents.get_int("id") ?? NOT_LSP_REQUEST?!,
+		.id = message.contents.get_int("id") ?? NOT_LSP_REQUEST~!,
 		.method = message.method,
 		.params = message.params,
 	};
@@ -144,36 +153,37 @@ fn LspNotification? get_notification_struct(LspMessage message)
 			?? maybe::EMPTY{Object*},
 	};
 }
-<*
-	@param $get_func : "Get function to use (get_int, get_string, etc.)"
-	@param $field : "Field to get and set"
-	@param #variable : "Variable of which to set the field to"
-		"(some_var.field = <value of $field>)"
-*>
-macro Object.@try_get(&self, String $get_func, String $field, #variable = EMPTY_MACRO_SLOT)
-{
-	$if $typeof(#variable).typeid != EmptySlot:
-	if (try getted = self.$eval($get_func)($field))
-	{
-		#variable.$eval($field) = getted;
-	}
-	else
-	{
-		log::info("`" +++ $field +++ "` field missing");
-		return MESSAGE_MISSING_FIELDS?;
-	}
-	$else
-	if (try getted = self.$eval($get_func)($field))
-	{
-		return getted;
-	}
-	else
-	{
-		log::info("`" +++ $field +++ "` field missing");
-		return MESSAGE_MISSING_FIELDS?;
-	}
-	$endif
-}
+
+// <*
+// 	@param $get_func : "Get function to use (get_int, get_string, etc.)"
+// 	@param $field : "Field to get and set"
+// 	@param #variable : "Variable of which to set the field to"
+// 		"(some_var.field = <value of $field>)"
+// *>
+// macro Object.@try_get(&self, String $get_func, String $field, #variable = EMPTY_MACRO_SLOT)
+// {
+// 	$if $Typeof(#variable).typeid != EmptySlot:
+// 	if (try getted = self.$eval($get_func)($field))
+// 	{
+// 		#variable.$eval($field) = getted;
+// 	}
+// 	else
+// 	{
+// 		log::info("`" +++ $field +++ "` field missing");
+// 		return MESSAGE_MISSING_FIELDS~;
+// 	}
+// 	$else
+// 	if (try getted = self.$eval($get_func)($field))
+// 	{
+// 		return getted;
+// 	}
+// 	else
+// 	{
+// 		log::info("`" +++ $field +++ "` field missing");
+// 		return MESSAGE_MISSING_FIELDS~;
+// 	}
+// 	$endif
+// }
 
 /// `LspActionData` definitions
 // can be used for any action that doesnt have any data
