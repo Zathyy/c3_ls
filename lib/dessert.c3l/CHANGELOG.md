@@ -2,6 +2,13 @@
 
 All notable changes to dessert are documented here.
 
+## 2026-04-20
+
+- Added new `$expand(derive{YourType}(serialize, deserialize))` shorthand to implement the required methods
+- Added support for C3 `0.8.0`
+- Added optional `serialize_slice_item_start(usz idx)` and `serialize_slice_item_end(usz idx)` to the Serializer interface
+- Added `flatten` option to serialized struct (will crash if deserialized at the moment)
+
 ## 2026-04-19
 
 - Added the `fmt` `@DField` option to pass format specific arguments to the serializer.

@@ -11,8 +11,10 @@ interface Serializer {
   fn void? serialize_field_end(String name, FieldAttrs fmt);
   fn void? struct_end(String name);
 
-  fn void? serialize_slice_start(ulong len);
-  fn void? serialize_slice_end(ulong len);
+  fn void? serialize_slice_start(long len);
+  fn void? serialize_slice_item_start(usz idx) @optional;
+  fn void? serialize_slice_item_end(usz idx) @optional;
+  fn void? serialize_slice_end(long len);
 
   fn void? serialize_null();
   fn void? serialize_bool(bool b);
@@ -48,84 +50,116 @@ interface Serializable {
 
 <* @require $defined(Serializer s = serializer) *>
 macro serialize(serializer, value) {
-  serialize_value(serializer, value, {})!;
+  serialize_value(serializer, value, (DessertFieldConfig) {})!;
   return serializer.result();
 }
 
-/*
-  attributes:
-  - rename
-  - skip
-  - skip_if_empty
-  - aliases
-  - default
-  - validator
-*/
-
+<* @require $defined(s.serialize(serializer)) *>
 macro impl_serialize(s, Serializer serializer) {
-  $if $typeof(s).kindof != POINTER:
+  $if $Typeof(s)::kind != POINTER:
     $error "The first parameter must be a &self pointer.";
   $endif
 
   $switch:
-    $case $typeof(s).inner.kindof == ENUM:
+    $case $Typeof(s)::inner.kind == ENUM:
       impl_serialize_enum(s, serializer)!;
 
-    $case $typeof(s).inner.kindof == STRUCT:
-      serializer.struct_start($typeof(s).inner.nameof)!;
-      $foreach $member : $typeof(s).inner.membersof:
-        DessertFieldConfig $dessert = $member.has_tagof("dessert:ser") ??? $member.tagof("dessert:ser") : (DessertFieldConfig) {};
-        $if !$dessert.skip:
-          $if $dessert.validator.len > 0: 
-            if (!s.$eval($dessert.validator)(s.$eval($member.nameof))) {
+    $case $Typeof(s)::inner.kind == STRUCT:
+      var $type = $Typeof(s)::inner;
+      $foreach $member : $type.members:
+        DessertFieldConfig $config = $member.has_tag("dessert:ser") ??? $member.get_tag("dessert:ser") : (DessertFieldConfig) {};
+        $if !$config.skip:
+          $if $config.validator.len > 0: 
+            if (!s.$eval($config.validator)(s.$eval($member.name))) {
               return VALIDATOR_ERROR~;
             }
           $endif
 
           $switch:
-            $case $dessert.skip_if_empty:
-              if (!@is_empty(s.$eval($member.nameof))) {
-                serializer.serialize_field_start(
-                  $dessert.rename.len > 0 ??? $dessert.rename : $member.nameof,
-                  $dessert.fmt,
-                )!;
-                serialize_value(serializer, s.$eval($member.nameof), $dessert)!;
-                serializer.serialize_field_end(
-                  $dessert.rename.len > 0 ??? $dessert.rename : $member.nameof,
-                  $dessert.fmt,
-                )!;
+            $case $config.skip_if_empty:
+              if (!@is_empty(s.$eval($member.name))) {
+                @serialize_field(serializer, $config, s, $member)!;
               }
 
-            $case $defined(s.$eval("skip_serializing_" +++ $member.nameof)()) 
-              &&& $typeof(s.$eval("skip_serializing_" +++ $member.nameof)).returns == bool:
+            $case $defined(s.$eval("skip_serializing_" +++ $member.name)()) 
+              &&& $Typeof(s.$eval("skip_serializing_" +++ $member.name))::returns == bool:
 
-              if (!s.$eval("skip_serializing_" +++ $member.nameof)()) {
-                serializer.serialize_field_start(
-                  $dessert.rename.len > 0 ??? $dessert.rename : $member.nameof,
-                  $dessert.fmt,
-                )!;
-                serialize_value(serializer, s.$eval($member.nameof), $dessert)!;
-                serializer.serialize_field_end(
-                  $dessert.rename.len > 0 ??? $dessert.rename : $member.nameof,
-                  $dessert.fmt,
-                )!;
+              if (!s.$eval("skip_serializing_" +++ $member.name)()) {
+                @serialize_field(serializer, $config, s, $member)!;
               }
 
             $default:
-              serializer.serialize_field_start(
-                $dessert.rename.len > 0 ??? $dessert.rename : $member.nameof,
-                $dessert.fmt,
-              )!;
-              serialize_value(serializer, s.$eval($member.nameof), $dessert)!;
-              serializer.serialize_field_end(
-                $dessert.rename.len > 0 ??? $dessert.rename : $member.nameof,
-                $dessert.fmt,
-              )!;
+              @serialize_field(serializer, $config, s, $member)!;
           $endswitch
         $endif
       $endforeach
-      serializer.struct_end($typeof(s).inner.nameof)!;
   $endswitch
+}
+
+macro @impl_serialize_struct($Type, s, Serializer serializer) @local {
+  $foreach $member : $Type::members:
+    DessertFieldConfig $config = $member.has_tag("dessert:ser") ??? $member.get_tag("dessert:ser") : (DessertFieldConfig) {};
+    $if !$config.skip:
+      $if $config.validator.len > 0: 
+        if (!s.$eval($config.validator)(s.$eval($member.name))) {
+          return VALIDATOR_ERROR~;
+        }
+      $endif
+
+      $switch:
+        $case $config.skip_if_empty:
+          if (!@is_empty(s.$eval($member.name))) {
+            @serialize_field(serializer, $config, s, $member)!;
+          }
+
+        $case $defined(s.$eval("skip_serializing_" +++ $member.name)()) 
+          &&& $Typeof(s.$eval("skip_serializing_" +++ $member.name))::returns == bool:
+
+          if (!s.$eval("skip_serializing_" +++ $member.name)()) {
+            @serialize_field(serializer, $config, s, $member)!;
+          }
+
+        $default:
+          @serialize_field(serializer, $config, s, $member)!;
+      $endswitch
+    $endif
+  $endforeach
+}
+
+macro @serialize_field(serializer, $config, s, $member) @local {
+  $if $member.type.name == @sprintf("%s.%s", $Typeof(s)::inner.name, $member.name):
+    $if !$config.flatten:
+      serializer.serialize_field_start(
+        $config.rename.len > 0 ??? $config.rename : $member.name,
+        $config.fmt,
+      )!;
+    $endif
+
+    @impl_serialize_struct($member.type, &s.$eval($member.name), serializer)!;
+
+    $if !$config.flatten:
+      serializer.serialize_field_end(
+        $config.rename.len > 0 ??? $config.rename : $member.name,
+        $config.fmt,
+      )!;
+    $endif
+  $else
+    $if !$config.flatten:
+      serializer.serialize_field_start(
+        $config.rename.len > 0 ??? $config.rename : $member.name,
+        $config.fmt,
+      )!;
+    $endif
+
+    serialize_value(serializer, s.$eval($member.name), $config)!;
+
+    $if !$config.flatten:
+      serializer.serialize_field_end(
+        $config.rename.len > 0 ??? $config.rename : $member.name,
+        $config.fmt,
+      )!;
+    $endif
+  $endif
 }
 
 macro @is_empty(#value) {
@@ -139,7 +173,7 @@ macro @is_empty(#value) {
       } else {
         return false;
       }
-    $case $typeof(#value).kindof == POINTER:
+    $case $Typeof(#value)::kind == POINTER:
       return #value == null;
   $endswitch
 }
@@ -147,61 +181,95 @@ macro @is_empty(#value) {
 macro serialize_value(serializer, value, $config) {
   $switch:
     $case $defined(value.serialize) &&& $defined(value.serialize(serializer)):
-      $if $typeof(value).kindof == POINTER:
-       if (value == null) {
-         serializer.serialize_null()!;
-         return;
-       }
+      var $type = $reflect(value).type;
+      $if $type.kind == POINTER:
+        $type = $Typeof(value)::inner;
+        if (value == null) {
+          serializer.serialize_null()!;
+          return;
+        }
+      $endif
+      $if $type.kind == STRUCT &&& !$config.flatten:
+        serializer.struct_start($type.name)!;
       $endif
       value.serialize(serializer)!;
+      $if $type.kind == STRUCT &&& !$config.flatten:
+        serializer.struct_end($type.name)!;
+      $endif
 
     $case utils::@is_maybe_expr(value):
       var inner = value.get();
       if (catch inner) {
         serializer.serialize_null()!;
       } else {
+        $if $Typeof(inner)::kind == STRUCT &&& !$config.flatten:
+          serializer.struct_start($Typeof(inner)::name)!;
+        $endif
         inner.serialize(serializer)!;
+        $if $Typeof(inner)::kind == STRUCT &&& !$config.flatten:
+          serializer.struct_end($Typeof(inner)::name)!;
+        $endif
       }
 
     $case $defined(value.len) &&& $defined(value[0]) &&& $defined(value.len()):
       serializer.serialize_slice_start(value.len())!;
-      foreach (el: value) {
-        serialize_value(serializer, value, $config)!;
+      $Typefrom($Typeof(Serializer.serialize_slice_item_start)) cb_start;
+      if (&((Serializer) serializer).serialize_slice_item_start) {
+        cb_start = &((Serializer) serializer).serialize_slice_item_start;
+      }
+      $Typefrom($Typeof(Serializer.serialize_slice_item_end)) cb_end;
+      if (&((Serializer) serializer).serialize_slice_item_end) {
+        cb_end = &((Serializer) serializer).serialize_slice_item_end;
+      }
+      foreach (i, el: value) {
+        if (cb_start) cb_start(serializer, (usz) i)!;
+        serialize_value(serializer, el, $config)!;
+        if (cb_end) cb_end(serializer, (usz) i)!;
       }
       serializer.serialize_slice_end(value.len())!;
 
     $case $defined(value.len) &&& $defined(value[0]):
       serializer.serialize_slice_start(value.len)!;
-      foreach (el: value) {
+      $Typefrom($Typeof(Serializer.serialize_slice_item_start)) cb_start;
+      if (&((Serializer) serializer).serialize_slice_item_start) {
+        cb_start = &((Serializer) serializer).serialize_slice_item_start;
+      }
+      $Typefrom($Typeof(Serializer.serialize_slice_item_end)) cb_end;
+      if (&((Serializer) serializer).serialize_slice_item_end) {
+        cb_end = &((Serializer) serializer).serialize_slice_item_end;
+      }
+      foreach (i, el: value) {
+        if (cb_start) cb_start(serializer, (usz) i)!;
         serialize_value(serializer, el, $config)!;
+        if (cb_end) cb_end(serializer, (usz) i)!;
       }
       serializer.serialize_slice_end(value.len)!;
 
     $default:
-      $error @sprintf("Value not serializable: '%s (%s)'", $typeof(value).nameof, $typeof(value).kindof);
+      $error @sprintf("Value not serializable: '%s (%s)'", $Typeof(value)::name, $Typeof(value)::kind);
   $endswitch
 }
 
 <*
-  @require $typeof(s).inner.kindof == ENUM
+  @require $Typeof(s)::inner.kind == ENUM
 *>
 macro impl_serialize_enum(s, serializer) @local {
-  var $type = $typeof(s).inner;
-  var $config = $type.has_tagof("dessert:ser:enum") ??? $type.tagof("dessert:ser:enum") : (DessertEnumConfig) {};
+  var $type = $Typeof(s)::inner;
+  var $config = $type.has_tag("dessert:ser:enum") ??? $type.get_tag("dessert:ser:enum") : (DessertEnumConfig) {};
 
   $switch $config.as:
     $case NAME:
-      return serialize_value(serializer, s.nameof, {});
+      return serialize_value(serializer, s.description, (DessertFieldConfig) {});
 
     $case ORDINAL:
-      return serialize_value(serializer, s.ordinal, {});
+      return serialize_value(serializer, s.ordinal, (DessertFieldConfig) {});
 
     $case FIELD:
       var $field_name = $config.field;
       $if $field_name.len == 0:
         $error "While serializing an enum: When the 'as' attribute is set to 'FIELD', 'field' must be provided with the name of an associated field of the enum.";
       $endif
-      return serialize_value(serializer, s.$eval($field_name), {});
+      return serialize_value(serializer, s.$eval($field_name), (DessertFieldConfig) {});
   $endswitch
 }
 

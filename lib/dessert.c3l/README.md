@@ -301,14 +301,16 @@ interface Serializer {
 
   fn void? serialize_null();
 
-  fn void? serialize_slice_start();
+  fn void? serialize_slice_start(ulong len);
   fn void? serialize_slice_end(ulong len);
 
   fn void? serialize_field_start(String name);
-  fn void? serialize_field_end();
+  fn void? serialize_slice_item_start(usz idx) @optional;
+  fn void? serialize_slice_item_end(usz idx) @optional;
+  fn void? serialize_field_end(String name);
 
-  fn void? struct_start();
-  fn void? struct_end();
+  fn void? struct_start(String name);
+  fn void? struct_end(String name);
 }
 ```
 

@@ -31,6 +31,7 @@ struct LspShutdownResponse
 	int id;
 	Maybe{void*} result;
 }
+
 fn String LspShutdownRequest.response(&self, Allocator allocator) @inline
 {
 	LspShutdownResponse response = {

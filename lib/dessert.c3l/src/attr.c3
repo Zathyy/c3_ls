@@ -29,6 +29,7 @@ struct DessertFieldConfig {
   String[] aliases;
   String validator;
   FieldAttrs fmt;
+  bool flatten;
 }
 
 attrdef @DField(DessertFieldConfig config) = @tag("dessert:ser", config), @tag("dessert:des", config);

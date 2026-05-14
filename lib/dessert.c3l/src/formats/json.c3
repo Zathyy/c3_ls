@@ -63,7 +63,7 @@ fn void? JsonValue.print(self) {
       io::printf("\"%s\"", self.value.s);
     case ARRAY:
       io::printf("[");
-      ulong l_len = self.value.l.len();
+      long l_len = self.value.l.len();
       foreach (i, item : self.value.l) {
         item.print()!;
         if (i < l_len - 1) {
@@ -73,7 +73,7 @@ fn void? JsonValue.print(self) {
      io::printf("]");
     case DICT:
       io::printf("{");
-      ulong d_len = self.value.d.len();
+      long d_len = self.value.d.len();
       
       int i = 0;
       self.value.d.@each_entry(; entry) {
@@ -107,7 +107,7 @@ fn String? JsonValue.to_string(self) {
       DString s;
       s.init(mem);
       s.append("[");
-      ulong l_len = self.value.l.len();
+      long l_len = self.value.l.len();
       foreach (i, item : self.value.l) {
         s.append(item.to_string()!);
         if (i < l_len - 1) {
@@ -120,7 +120,7 @@ fn String? JsonValue.to_string(self) {
       DString s;
       s.init(mem);
       s.append("{");
-      ulong d_len = self.value.d.len();
+      long d_len = self.value.d.len();
       
       int i = 0;
       self.value.d.@each_entry(; entry) {
@@ -163,7 +163,7 @@ fn String to_pretty_string(JsonValue self, int indent = 2, int depth = 0) @priva
     case ARRAY:
       DString s;
       s.init(mem);
-      ulong l_len = self.value.l.len();
+      long l_len = self.value.l.len();
       if (l_len == 0) return "[]";
       s.append("[\n");
       foreach (i, item : self.value.l) {
@@ -178,7 +178,7 @@ fn String to_pretty_string(JsonValue self, int indent = 2, int depth = 0) @priva
     case DICT:
       DString s;
       s.init(mem);
-      ulong d_len = self.value.d.len();
+      long d_len = self.value.d.len();
       if (d_len == 0) return "{}";
       s.append("{\n");
       int i = 0;
@@ -252,8 +252,8 @@ fn void? JsonSerializer.struct_start(&self, String name) @dynamic {
 
 fn void? JsonSerializer.struct_end(&self, String name) @dynamic {}
 
-fn void? JsonSerializer.serialize_slice_start(&self, ulong len) @dynamic {}
-fn void? JsonSerializer.serialize_slice_end(&self, ulong len) @dynamic {
+fn void? JsonSerializer.serialize_slice_start(&self, long len) @dynamic {}
+fn void? JsonSerializer.serialize_slice_end(&self, long len) @dynamic {
   List{JsonValue} l;
   l.init(mem);
   for (int i = 0; i < len; i++) {
@@ -279,6 +279,73 @@ fn void? JsonSerializer.serialize_field_end(&self, String name, FieldAttrs fmt) 
 
 fn JsonValue? JsonSerializer.result(&self) => self.output.pop();
 
+
+struct JsonStringSerializer (Serializer) {
+  DString output;
+}
+
+fn JsonStringSerializer string_serializer(Allocator allocator = tmem) {
+  DString output;
+  output.init(allocator);
+  return { .output = output };
+}
+
+fn void? JsonStringSerializer.serialize_null(&self) @dynamic {
+  self.output.append("null");
+}
+
+fn void? JsonStringSerializer.serialize_bool(&self, bool b) @dynamic {
+  self.output.append(b ? "true" : "false");
+}
+
+fn void? JsonStringSerializer.serialize_long(&self, long i) @dynamic {
+  self.output.append(string::tformat("%d", i));
+}
+
+fn void? JsonStringSerializer.serialize_double(&self, double f) @dynamic {
+  self.output.append(string::tformat("%d", f));
+}
+
+fn void? JsonStringSerializer.serialize_string(&self, String s) @dynamic {
+  self.output.append("\"");
+  self.output.append(s.treplace("\"", "\\\""));
+  self.output.append("\"");
+}
+
+fn void? JsonStringSerializer.struct_start(&self, String name) @dynamic {
+  self.output.append("{");
+}
+
+fn void? JsonStringSerializer.struct_end(&self, String name) @dynamic {
+  if (self.output[^1] == ',') {
+    self.output.chop(self.output.len() - 1);
+  }
+  self.output.append("}");
+}
+
+fn void? JsonStringSerializer.serialize_slice_start(&self, long len) @dynamic {
+  self.output.append("[");
+}
+
+fn void? JsonStringSerializer.serialize_slice_end(&self, long len) @dynamic {
+  if (len > 0) self.output.chop(self.output.len() - 1);
+  self.output.append("]");
+}
+
+fn void? JsonStringSerializer.serialize_slice_item_end(&self, usz idx) @dynamic {
+  self.output.append(",");
+}
+
+fn void? JsonStringSerializer.serialize_field_start(&self, String name, FieldAttrs fmt) @dynamic {
+  self.serialize_string(name)!;
+  self.output.append(":");
+}
+
+fn void? JsonStringSerializer.serialize_field_end(&self, String name, FieldAttrs fmt) @dynamic {
+  self.output.append(",");
+}
+
+fn String JsonStringSerializer.result(&self) => self.output.str_view();
 
 
 faultdef 
@@ -393,7 +460,7 @@ fn Object*? JsonDeserializer.next_any(&self) @dynamic {
   Char32 next = self.input.peek()!;
   switch {
     case next == '"':
-      return object::new_string(self.next_string(), mem)!;
+      return object::new_string(tmem, self.next_string())!;
 
     case next == 't':
     case next == 'f':
@@ -404,7 +471,7 @@ fn Object*? JsonDeserializer.next_any(&self) @dynamic {
       return object::new_null();
 
     case next == '{':
-      Object* o = object::new_obj(mem);
+      Object* o = object::new_obj(tmem);
       self.struct_start("")!;
       while(self.has_next_field()!) {
         String next_key = self.next_field_name()!;
@@ -414,7 +481,7 @@ fn Object*? JsonDeserializer.next_any(&self) @dynamic {
       return o;
 
     case next == '[':
-      Object* o = object::new_obj(mem);
+      Object* o = object::new_obj(tmem);
       self.slice_start()!;
       while(self.has_next_slice_item()!) {
         o.push(self.next_any())!;
@@ -425,9 +492,9 @@ fn Object*? JsonDeserializer.next_any(&self) @dynamic {
     case ascii::is_digit((char) next):
       double value = self.next_double()!;
       if ((double) math::round(value) == value) {
-        return object::new_int((int128) value, mem);
+        return object::new_int(tmem, (int128) value);
       }
-      return object::new_float(value, mem);
+      return object::new_float(tmem, value);
   }
 
   return INVALID_OBJECT~;

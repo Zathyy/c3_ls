@@ -3,20 +3,21 @@ import std;
 import dessert;
 import json;
 import csv;
+import derive;
 
 // ── Test types ───────────────────────────────────────────────────────────────
 
+$expand(derive(SPoint::name, dessert));
 struct SPoint {
   int x;
   int y;
 }
-fn void? SPoint.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
 
+$expand(derive(SBox::name, dessert));
 struct SBox {
   String label;
   SPoint center;
 }
-fn void? SBox.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
 
 struct SWithPointer {
   String name;

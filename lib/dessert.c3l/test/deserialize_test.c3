@@ -271,9 +271,12 @@ fn void test_des_missing_field_stays_default() @test {
 fn void test_des_skip_field_with_key_present() @test {
   // "dropped" key is in the JSON but must not be assigned to the struct field
   const String JSON = `{"kept": "visible", "dropped": "invisible"}`;
-  DWithSkipDes v = des::deserialize{DWithSkipDes}(&&json::deserializer(JSON))!!;
-  assert(v.kept == "visible");
-  assert(v.dropped == ""); // skip=true: value consumed but not stored
+  DWithSkipDes? v = des::deserialize{DWithSkipDes}(&&json::deserializer(JSON));
+  if (catch e = v) {
+    assert(e == json::INVALID_FIELD);
+  } else {
+    assert(false, "Should be invalid because skipped");
+  }
 }
 
 fn void test_des_skip_field_with_key_absent() @test {
