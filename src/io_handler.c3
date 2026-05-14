@@ -15,20 +15,27 @@ String prev_buffer;
 *>
 fn void init()
 {
-	int fd_flags = os::fcntl((NativeSocket) libc::STDIN_FD, os::F_GETFL, 0);
-	os::fcntl((NativeSocket) libc::STDIN_FD, os::F_SETFL, fd_flags | os::O_NONBLOCK);
+	NativeSocket socket = ((NativeSocket)libc::STDIN_FD);
+	if (catch err = socket.set_non_blocking(true))
+	{
+		log::error("Failed to set stdin non blocking: %s", err);
+	}
 }
+
 <*
 	Free incomplete message buffer
 *>
 fn void quit()
 {
-	if (prev_buffer.ptr != null) mem::free(prev_buffer);
+	if (prev_buffer.ptr != null) 
+	{
+		mem::free(prev_buffer);
+	}
 }
 
 faultdef
-	NO_NEW_DATA,
-;
+	NO_NEW_DATA;
+
 <*
 	Reads LSP message from stdin
 	@param [in] allocator
@@ -97,6 +104,7 @@ fn LspMessage? read(Allocator allocator, String message = {}) => @pool()
 	}
 	return decode_result.message;
 }
+
 <*
 	@param [in] message
 *>
