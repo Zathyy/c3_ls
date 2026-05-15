@@ -100,7 +100,7 @@ macro deserialize(Deserializer deserializer) <Output> {
   $endswitch
 }
 
-macro impl_deserialize(value, Deserializer deserializer) {
+macro void? impl_deserialize(value, Deserializer deserializer) {
   $if $Typeof(value)::kind != POINTER:
     $error "The first parameter must be a &self pointer.";
   $endif
@@ -108,10 +108,10 @@ macro impl_deserialize(value, Deserializer deserializer) {
   $switch:
     $case $Typeof(value)::inner.kind == ENUM:
       var $type = $Typeof(value)::inner;
-      var $config = $type.has_tag("dessert:des:enum") ??? $type.get_tag("dessert:des:enum") : (DessertEnumConfig) {};
+      var $config = $type.has_tag("dessert:des:enum") ??? $type.get_tag("dessert:des:enum") : (DEnumConfig) {};
 
       $switch $config.as:
-        $case NAME:
+        $case DESCRIPTION:
           String name = deserializer.next_string()!;
           int found = -1;
           foreach(i, v : $type.names) {
@@ -143,7 +143,7 @@ macro impl_deserialize(value, Deserializer deserializer) {
 
     $case $Typeof(value)::inner.kind == STRUCT:
       var $type = $Typeof(value)::inner;
-      var $config = $type.has_tag("dessert:des:struct") ??? $type.get_tag("dessert:des:struct") : (DessertStructConfig) {};
+      var $config = $type.has_tag("dessert:des:struct") ??? $type.get_tag("dessert:des:struct") : (DStructConfig) {};
       List{String} names;
       names.tinit();
 
@@ -156,20 +156,24 @@ macro impl_deserialize(value, Deserializer deserializer) {
           return;
         }
         $foreach $member : $Typeof(value)::inner.members:
-          DessertFieldConfig $dessert = $member.has_tag("dessert:des") ??? $member.get_tag("dessert:des") : (DessertFieldConfig) {};
+          DFieldConfig $dessert = $member.has_tag("dessert:des") ??? $member.get_tag("dessert:des") : (DFieldConfig) {};
           var $name = $dessert.rename.len > 0 ??? $dessert.rename : $member.name;
           if ($name == next_key) {
             if (names.contains(next_key)) {
               return DUPLICATED_KEY~;
             }
             $if !$dessert.skip:
-              $Typefrom($member.type)? next_value = deserialize{$member.type}(deserializer);
-              if (catch next_value) {
-                io::eprintfn("Error deserializing key: %s", next_key);
-                next_value!;
-                return;
-              }
-              value.$eval($member.name) = next_value;
+              $if $member.type.name == @sprintf("%s.%s", $Typeof(value)::inner.name, $member.name):
+                impl_deserialize(&value.$eval($member.name), deserializer)!;
+              $else
+                $Typefrom($member.type)? next_value = deserialize{$member.type}(deserializer);
+                if (catch next_value) {
+                  io::eprintfn("Error deserializing key: %s", next_key);
+                  next_value!;
+                  return;
+                }
+                value.$eval($member.name) = next_value;
+              $endif
             $endif
 
             names.push($member.name);

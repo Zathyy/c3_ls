@@ -2,6 +2,12 @@
 
 All notable changes to dessert are documented here.
 
+## 2026-05-15
+
+- Added tag union support inside structs
+- Added support for substruct and subunion fields
+- Renamed `@DEnum` option `NAME` to `DESCRIPTION` to match the c3 language's name for this
+
 ## 2026-04-20
 
 - Added new `$expand(derive{YourType}(serialize, deserialize))` shorthand to implement the required methods

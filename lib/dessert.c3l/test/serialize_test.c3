@@ -461,6 +461,92 @@ fn void test_ser_csv_values() @test {
   assert(sunny[1].kind == CSVValueKind.BOOL && sunny[1].value.b == true);
 }
 
+// ── Tests: inline sub-struct ──────────────────────────────────────────────────
+
+struct SWithInlineSub {
+  int id;
+  struct pos { 
+    int x;
+    int y; 
+  }
+}
+fn void? SWithInlineSub.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
+
+struct SWithFlatSub {
+  int id;
+  struct pos @DField({ .flatten = true }) { 
+    int x;
+    int y; 
+  }
+}
+fn void? SWithFlatSub.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
+
+fn void test_ser_inline_substruct_nested() @test {
+  SWithInlineSub s = { .id = 7, .pos = { .x = 3, .y = -4 } };
+  JsonSerializer js = json::serializer();
+  JsonValue j = ser::serialize(&js, s)!!;
+  defer j.free();
+
+  assert(j.kind == JsonValueKind.DICT);
+  assert(j.value.d.get("id")!!.value.i == 7);
+  JsonValue pos = j.value.d.get("pos")!!;
+  assert(pos.kind == JsonValueKind.DICT);
+  assert(pos.value.d.get("x")!!.value.i == 3);
+  assert(pos.value.d.get("y")!!.value.i == -4);
+}
+
+fn void test_ser_inline_substruct_flatten() @test {
+  SWithFlatSub s = { .id = 1, .pos = { .x = 10, .y = 20 } };
+  JsonSerializer js = json::serializer();
+  JsonValue j = ser::serialize(&js, s)!!;
+  defer j.free();
+
+  assert(j.value.d.get("id")!!.value.i == 1);
+  assert(j.value.d.get("x")!!.value.i == 10);
+  assert(j.value.d.get("y")!!.value.i == 20);
+  if (catch j.value.d.get("pos")) { /* correct: key absent */ } else { assert(false); }
+}
+
+// ── Tests: union ──────────────────────────────────────────────────────────────
+
+union SUVariant {
+  long i;
+  double f;
+}
+
+fn void? SUVariant.serialize(&self, Serializer serializer) {
+  serializer.serialize_long(self.i)!;
+}
+
+struct STaggedUnion {
+  int      tag;
+  SUVariant val;
+}
+fn void? STaggedUnion.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
+
+fn void test_ser_union_field() @test {
+  STaggedUnion tu = { .tag = 0, .val = { .i = 42 } };
+  JsonSerializer js = json::serializer();
+  JsonValue j = ser::serialize(&js, tu)!!;
+  defer j.free();
+
+  assert(j.kind == JsonValueKind.DICT);
+  assert(j.value.d.get("tag")!!.value.i == 0);
+  assert(j.value.d.get("val")!!.kind == JsonValueKind.INT);
+  assert(j.value.d.get("val")!!.value.i == 42);
+}
+
+fn void test_ser_union_negative_value() @test {
+  STaggedUnion tu = { .tag = 0, .val = { .i = -999 } };
+  JsonSerializer js = json::serializer();
+  JsonValue j = ser::serialize(&js, tu)!!;
+  defer j.free();
+
+  assert(j.value.d.get("val")!!.value.i == -999);
+}
+
+// ── Tests: CSV ───────────────────────────────────────────────────────────────
+
 fn void test_ser_csv_to_string_has_header() @test {
   SWeatherRow[1] rows = { { .city = "Toulouse", .temp = 18.0, .sunny = false } };
   CSVSerializer s = csv::serializer();

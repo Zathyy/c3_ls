@@ -519,6 +519,92 @@ fn void test_des_roundtrip_complex() @test {
   assert(copy.target.y     == -1);
 }
 
+// ── Tests: inline sub-struct ──────────────────────────────────────────────────
+
+struct DWithInlineSub {
+  int id;
+  struct pos { 
+    int x;
+    int y;
+  }
+}
+fn void? DWithInlineSub.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
+fn void? DWithInlineSub.deserialize(&self, Deserializer deserializer) => des::impl_deserialize(self, deserializer);
+
+fn void test_des_inline_substruct() @test {
+  const String JSON = `{"id": 5, "pos": {"x": 11, "y": -2}}`;
+  DWithInlineSub v = des::deserialize{DWithInlineSub}(&&json::deserializer(JSON))!!;
+  assert(v.id == 5);
+  assert(v.pos.x == 11);
+  assert(v.pos.y == -2);
+}
+
+fn void test_des_inline_substruct_missing_field() @test {
+  const String JSON = `{"id": 3, "pos": {"x": 7}}`;
+  DWithInlineSub v = des::deserialize{DWithInlineSub}(&&json::deserializer(JSON))!!;
+  assert(v.id == 3);
+  assert(v.pos.x == 7);
+  assert(v.pos.y == 0);
+}
+
+fn void test_des_inline_substruct_roundtrip() @test {
+  DWithInlineSub orig = { .id = 99, .pos = { .x = 7, .y = -3 } };
+  JsonSerializer s = json::serializer();
+  JsonValue j = ser::serialize(&s, orig)!!;
+  defer j.free();
+
+  DWithInlineSub copy = des::deserialize{DWithInlineSub}(&&json::deserializer(j.to_string()!!))!!;
+  assert(copy.id == 99);
+  assert(copy.pos.x == 7);
+  assert(copy.pos.y == -3);
+}
+
+// ── Tests: union ──────────────────────────────────────────────────────────────
+
+union DUVariant {
+  long i;
+  double f;
+}
+
+fn void? DUVariant.serialize(&self, Serializer serializer) {
+  serializer.serialize_long(self.i)!;
+}
+
+fn void? DUVariant.deserialize(&self, Deserializer deserializer) {
+  self.i = deserializer.next_long()!;
+}
+
+struct DTaggedUnion {
+  int      tag;
+  DUVariant val;
+}
+fn void? DTaggedUnion.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
+fn void? DTaggedUnion.deserialize(&self, Deserializer deserializer) => des::impl_deserialize(self, deserializer);
+
+fn void test_des_union_field() @test {
+  const String JSON = `{"tag": 0, "val": 999}`;
+  DTaggedUnion v = des::deserialize{DTaggedUnion}(&&json::deserializer(JSON))!!;
+  assert(v.tag == 0);
+  assert(v.val.i == 999);
+}
+
+fn void test_des_union_negative() @test {
+  const String JSON = `{"tag": 0, "val": -12345}`;
+  DTaggedUnion v = des::deserialize{DTaggedUnion}(&&json::deserializer(JSON))!!;
+  assert(v.val.i == -12345);
+}
+
+fn void test_des_union_roundtrip() @test {
+  DTaggedUnion orig = { .tag = 0, .val = { .i = 42 } };
+  JsonSerializer s = json::serializer();
+  JsonValue j = ser::serialize(&s, orig)!!;
+  defer j.free();
+
+  DTaggedUnion copy = des::deserialize{DTaggedUnion}(&&json::deserializer(j.to_string()!!))!!;
+  assert(copy.tag == 0);
+  assert(copy.val.i == 42);
+}
+
 fn void test_des_roundtrip_null_pointer() @test {
   DComplex original = {
     .title  = "no-target",
