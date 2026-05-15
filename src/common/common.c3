@@ -23,8 +23,8 @@ union MessageParams
   Object* unknown;
   struct initialize @DStruct({ .rename_all = CAMEL_CASE })
   {
-    int process_id @DField({ .rename = "processId" });
-    struct client_info @DField({ .rename = "clientInfo" })
+    int process_id;
+    struct client_info
     {
       String version;
     }
