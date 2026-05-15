@@ -19,7 +19,7 @@ struct LspRequest
 	String jsonrpc;
 	int id;
 	MessageKind method;
-	Maybe{Object*} params;
+	MessageParams params @DField({ .tagged_by = "method" });
 }
 
 // fn usz? LspRequest.to_format(&self, Formatter* f) @dynamic => io::struct_to_format(*self, f, true);

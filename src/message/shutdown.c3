@@ -29,7 +29,7 @@ struct LspShutdownResponse
 {
 	String jsonrpc;
 	int id;
-	Maybe{void*} result;
+	// Maybe{void*} result;
 }
 
 fn String LspShutdownRequest.response(&self, Allocator allocator) @inline
@@ -37,7 +37,7 @@ fn String LspShutdownRequest.response(&self, Allocator allocator) @inline
 	LspShutdownResponse response = {
 		.jsonrpc = self.jsonrpc,
 		.id = self.id,
-		.result = {},
+		// .result = {},
 	};
 	String response_json = translator::encode(response, allocator);
 	log::debug("shutdown response: %s", response_json);

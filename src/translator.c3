@@ -19,15 +19,14 @@ struct LspMessage
 {
 	String rpc;
 	MessageKind method;
-	Maybe{Object*} params;
+	// Maybe{Object*} params;
+  MessageParams params @DField({ .tagged_by = "method" });
 
 	Allocator allocator @DField({.skip = true});
 	Object* contents;
 }
 
 fn bool LspMessage.is_initialized(self) @inline => self.contents != null;
-// fn sz? LspMessage.to_format(&self, Formatter* formatter) @dynamic
-	// => formatter.printf("%s", self.contents);
 
 fn void LspMessage.free(&self)
 {
@@ -84,8 +83,8 @@ macro IoDecodeResult? decode(Allocator allocator, String message) => @pool()
 
 	String header = split[0];
 	String content_length_str = header[HEADER_START.len..];
-	usz content_length @noinit;
-	if (catch @try(content_length, content_length_str.to_integer(usz)))
+	ulong content_length @noinit;
+	if (catch @try(content_length, content_length_str.to_ulong()))
 	{
 		log::verbose("failed to read content length");
 		return INCOMPLETE_JSON~;
@@ -98,50 +97,51 @@ macro IoDecodeResult? decode(Allocator allocator, String message) => @pool()
 	}
 
 	String json_message = split[1][:content_length];
-	Object* json_obj @noinit;
-	if (catch @try(json_obj, json::parse_string(allocator, json_message)))
-	{
-		log::verbose("failed to read json contents");
-		return INCOMPLETE_JSON~;
-	}
-
-	log::verbose("successfully read message %s", json_message);
+	// Object* json_obj @noinit;
+	// if (catch @try(json_obj, json::parse_string(allocator, json_message)))
+	// {
+	// 	log::verbose("failed to read json contents");
+	// 	return INCOMPLETE_JSON~;
+	// }
+	//
+	// log::verbose("successfully read message %s", json_message);
 
 	LspMessage lsp_message = {
 		.allocator = allocator,
-		.contents = json_obj,
+		// .contents = json_obj,
+		.contents = {},
 	};
-	if (try rpc = json_obj.get_string("jsonrpc"))
-	{
-		lsp_message.rpc = rpc;
-	}
-	else
-	{
-		log::debug("lsp message is missing rpc");
-		return INVALID_MESSAGE~;
-	}
-	if (try method = json_obj.get_string("method"))
-	{
-		MessageKind? kind = MessageKind::lookup_field(name, method);
-		if (catch kind)
-		{
-			kind = UNKNOWN;
-		}
-		lsp_message.method = kind;
-	}
-	else
-	{
-		log::debug("lsp message is missing method");
-		return INVALID_MESSAGE~;
-	}
-	if (try params = json_obj.get("params"))
-	{
-		lsp_message.params = maybe::value{Object*}(params);
-	}
-	else
-	{
-		log::verbose("lsp message is missing params");
-	}
+	// if (try rpc = json_obj.get_string("jsonrpc"))
+	// {
+	// 	lsp_message.rpc = rpc;
+	// }
+	// else
+	// {
+	// 	log::debug("lsp message is missing rpc");
+	// 	return INVALID_MESSAGE~;
+	// }
+	// if (try method = json_obj.get_string("method"))
+	// {
+	// 	MessageKind? kind = MessageKind::lookup_field(name, method);
+	// 	if (catch kind)
+	// 	{
+	// 		kind = UNKNOWN;
+	// 	}
+	// 	lsp_message.method = kind;
+	// }
+	// else
+	// {
+	// 	log::debug("lsp message is missing method");
+	// 	return INVALID_MESSAGE~;
+	// }
+	// if (try params = json_obj.get("params"))
+	// {
+	// 	lsp_message.params = maybe::value{Object*}(params);
+	// }
+	// else
+	// {
+	// 	log::verbose("lsp message is missing params");
+	// }
 	
 	return {
 		.message = lsp_message,

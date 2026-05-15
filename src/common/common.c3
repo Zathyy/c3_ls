@@ -1,5 +1,7 @@
 module lsp;
 
+import std::collections::object;
+
 import dessert;
 import derive;
 
@@ -13,4 +15,18 @@ enum MessageKind : char (String name) @DEnum({ .as = FIELD, .field = "name" })
 	DID_CLOSE    { "textDocument/didClose" },
 	SHUTDOWN     { "shutdown" },
 	EXIT         { "exit" },
+}
+
+$expand(derive(MessageParams::name, dessert));
+union MessageParams
+{
+  Object* unknown;
+  struct initialize @DStruct({ .rename_all = CAMEL_CASE })
+  {
+    int process_id @DField({ .rename = "processId" });
+    struct client_info @DField({ .rename = "clientInfo" })
+    {
+      String version;
+    }
+  }
 }
