@@ -38,6 +38,7 @@ fn void read_message_compound()
 	assert(actual.method == INITIALIZE);
 	assert(actual.rpc == "2.0");
 }
+
 fn void read_multiple_messages()
 {
 	log::set_priority_all(LogPriority.VERBOSE);
@@ -45,8 +46,8 @@ fn void read_multiple_messages()
 	defer io_handler::quit();
 
 	String message = 
-		"Content-Length: 43\r\n\r\n" +++ `{"jsonrpc":"2.0","method":"initialize","params":{}}` +++
-		"Content-Length: 46\r\n\r\n" +++ `{"jsonrpc":"41.52","method":"bye","par`;
+		"Content-Length: 51\r\n\r\n" +++ `{"jsonrpc":"2.0","method":"initialize","params":{}}` +++
+		"Content-Length: 53\r\n\r\n" +++ `{"jsonrpc":"41.52","method":"initialize","par`;
 
 	LspMessage actual = io_handler::read(mem, message) ?? { .method = UNKNOWN };
 	io::printn("//");
@@ -54,13 +55,12 @@ fn void read_multiple_messages()
 	assert(actual.method == MessageKind.INITIALIZE);
 	assert(actual.rpc == "2.0");
 	actual.free();
-
 	/// splitting the message is necessary in order for the function to read
 	/// only from the message param
 	actual = io_handler::read(mem, `ams":{}}`) ?? { .method = UNKNOWN };
 	io::printn("//");
 	io::printn(actual);
-	assert(actual.method == UNKNOWN);
+	assert(actual.method == INITIALIZE);
 	assert(actual.rpc == "41.52");
 	actual.free();
 }

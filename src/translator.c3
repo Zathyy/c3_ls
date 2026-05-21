@@ -28,7 +28,11 @@ fn bool LspMessage.is_initialized(self) @inline => self.contents != null;
 
 fn void LspMessage.free(&self)
 {
-	if (self.contents != null) self.contents.free();
+	self.rpc.free(self.allocator);
+	if (self.contents != null)
+	{ 
+		self.contents.free();
+	}
 }
 
 <*
@@ -96,15 +100,15 @@ macro IoDecodeResult? decode(Allocator allocator, String message) => @pool()
 	}
 
 	String json_message = split[1][:content_length];
-	io::printfn(json_message);
-	
+
 	LspMessage? lsp_message = des::deserialize{LspMessage}(&&json::debug_deserializer(json_message));
 	if (catch err = lsp_message)
 	{
 		log::error("failed to deserialize LspMessage: %s", err);
 		return err~;
 	}
-	//lsp_message.allocator = allocator;
+	lsp_message.allocator = allocator;
+	lsp_message.rpc = lsp_message.rpc.copy(allocator);
 
 	return {
 		.message = lsp_message,

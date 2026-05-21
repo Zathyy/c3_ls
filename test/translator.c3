@@ -40,11 +40,11 @@ fn void encode_message()
 
 fn void decode_message()
 {
-	String decoded = "Content-Length: 43\r\n\r\n" +++ `{"jsonrpc":"2.0","method":"initialized","params":{}}`;
+	String decoded = "Content-Length: 51\r\n\r\n" +++ `{"jsonrpc":"2.0","method":"initialize","params":{}}`;
 	IoDecodeResult actual = translator::decode(mem, decoded)!!;
 	defer actual.message.free();
 	io::printn("//");
 	io::printn(actual.message);
 	assert(actual.message.rpc == "2.0");
-	assert(actual.message.method == INITIALIZED);
+	assert(actual.message.method == INITIALIZE);
 }
