@@ -22,16 +22,12 @@ struct LspRequest
 	MessageParams params @DField({ .tagged_by = "method" });
 }
 
-// fn usz? LspRequest.to_format(&self, Formatter* f) @dynamic => io::struct_to_format(*self, f, true);
-
 $expand(derive(LspResponse::name, dessert));
 struct LspResponse
 {
 	String jsonrpc;
 	Maybe{int} id;
 }
-
-// fn usz? LspResponse.to_format(&self, Formatter* f) @dynamic => io::struct_to_format(*self, f, true);
 
 $expand(derive(LspNotification::name, dessert));
 struct LspNotification
@@ -40,8 +36,6 @@ struct LspNotification
 	MessageKind method;
 	Maybe{Object*} params;
 }
-
-// fn usz? LspNotification.to_format(&self, Formatter* f) @dynamic => io::struct_to_format(*self, f, true);
 
 $expand(derive(LspActionType::name, dessert));
 enum LspActionType
@@ -153,37 +147,6 @@ fn LspNotification? get_notification_struct(LspMessage message)
 			?? maybe::EMPTY{Object*},
 	};
 }
-
-// <*
-// 	@param $get_func : "Get function to use (get_int, get_string, etc.)"
-// 	@param $field : "Field to get and set"
-// 	@param #variable : "Variable of which to set the field to"
-// 		"(some_var.field = <value of $field>)"
-// *>
-// macro Object.@try_get(&self, String $get_func, String $field, #variable = EMPTY_MACRO_SLOT)
-// {
-// 	$if $Typeof(#variable).typeid != EmptySlot:
-// 	if (try getted = self.$eval($get_func)($field))
-// 	{
-// 		#variable.$eval($field) = getted;
-// 	}
-// 	else
-// 	{
-// 		log::info("`" +++ $field +++ "` field missing");
-// 		return MESSAGE_MISSING_FIELDS~;
-// 	}
-// 	$else
-// 	if (try getted = self.$eval($get_func)($field))
-// 	{
-// 		return getted;
-// 	}
-// 	else
-// 	{
-// 		log::info("`" +++ $field +++ "` field missing");
-// 		return MESSAGE_MISSING_FIELDS~;
-// 	}
-// 	$endif
-// }
 
 /// `LspActionData` definitions
 // can be used for any action that doesnt have any data

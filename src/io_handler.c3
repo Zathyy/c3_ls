@@ -27,7 +27,7 @@ fn void init()
 *>
 fn void quit()
 {
-	if (prev_buffer.ptr != null) 
+	if (prev_buffer) 
 	{
 		mem::free(prev_buffer);
 	}
@@ -61,7 +61,7 @@ fn LspMessage? read(Allocator allocator, String message = {}) => @pool()
 	}
 	log::debug("got message: %s", (String)read_buffer);
 
-	if (prev_buffer.ptr == null)
+	if (!prev_buffer)
 	{
 		log::verbose("completely new message");
 		prev_buffer = (String)alloc::clone_slice(mem, read_buffer);

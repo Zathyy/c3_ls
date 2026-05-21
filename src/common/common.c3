@@ -20,13 +20,13 @@ enum MessageKind : char (String name) @DEnum({ .as = FIELD, .field = "name" })
 $expand(derive(MessageParams::name, dessert));
 union MessageParams
 {
-  Object* unknown;
-  struct initialize @DStruct({ .rename_all = CAMEL_CASE })
-  {
-    int process_id;
-    struct client_info
-    {
-      String version;
-    }
-  }
+	Object* unknown;
+	struct initialize @DStruct({ .rename_all = CAMEL_CASE })
+	{
+		int process_id;
+		struct client_info
+		{
+			String version;
+		}
+	}	
 }

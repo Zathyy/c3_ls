@@ -2,7 +2,10 @@ module lsp::translator @test;
 
 import std::collections::pair;
 import std::io;
+import dessert;
+import derive;
 
+$expand(derive(TranslatorTest::name, dessert));
 struct TranslatorTest
 {
 	String method;
@@ -15,6 +18,7 @@ struct TranslatorTest
 		}
 	}
 }
+
 fn void encode_message()
 {
 	TranslatorTest encoded = {
@@ -33,13 +37,14 @@ fn void encode_message()
 	io::printn(actual);
 	assert(actual == expected);
 }
+
 fn void decode_message()
 {
-	String decoded = "Content-Length: 43\r\n\r\n" +++ `{"jsonrpc":"2.0","method":"hi","params":{}}`;
+	String decoded = "Content-Length: 43\r\n\r\n" +++ `{"jsonrpc":"2.0","method":"initialized","params":{}}`;
 	IoDecodeResult actual = translator::decode(mem, decoded)!!;
 	defer actual.message.free();
 	io::printn("//");
 	io::printn(actual.message);
 	assert(actual.message.rpc == "2.0");
-	assert(actual.message.method == "hi");
+	assert(actual.message.method == INITIALIZED);
 }

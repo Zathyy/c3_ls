@@ -17,12 +17,10 @@ faultdef
 $expand(derive(LspMessage::name, dessert));
 struct LspMessage
 {
-	String rpc;
+	String rpc @DField({ .rename = "jsonrpc" });
 	MessageKind method;
-	// Maybe{Object*} params;
-  MessageParams params @DField({ .tagged_by = "method" });
-
-	Allocator allocator @DField({.skip = true});
+	MessageParams params @DField({ .tagged_by = "method" });
+	Allocator allocator @DField({ .skip = true});
 	Object* contents;
 }
 
@@ -58,6 +56,7 @@ struct IoDecodeResult
 	LspMessage message;
 	usz len;
 }
+
 <*
 	Decode JSONRPC message
 	@param [in] message
@@ -83,7 +82,7 @@ macro IoDecodeResult? decode(Allocator allocator, String message) => @pool()
 
 	String header = split[0];
 	String content_length_str = header[HEADER_START.len..];
-	ulong content_length @noinit;
+	ulong content_length;
 	if (catch @try(content_length, content_length_str.to_ulong()))
 	{
 		log::verbose("failed to read content length");
@@ -97,52 +96,16 @@ macro IoDecodeResult? decode(Allocator allocator, String message) => @pool()
 	}
 
 	String json_message = split[1][:content_length];
-	// Object* json_obj @noinit;
-	// if (catch @try(json_obj, json::parse_string(allocator, json_message)))
-	// {
-	// 	log::verbose("failed to read json contents");
-	// 	return INCOMPLETE_JSON~;
-	// }
-	//
-	// log::verbose("successfully read message %s", json_message);
-
-	LspMessage lsp_message = {
-		.allocator = allocator,
-		// .contents = json_obj,
-		.contents = {},
-	};
-	// if (try rpc = json_obj.get_string("jsonrpc"))
-	// {
-	// 	lsp_message.rpc = rpc;
-	// }
-	// else
-	// {
-	// 	log::debug("lsp message is missing rpc");
-	// 	return INVALID_MESSAGE~;
-	// }
-	// if (try method = json_obj.get_string("method"))
-	// {
-	// 	MessageKind? kind = MessageKind::lookup_field(name, method);
-	// 	if (catch kind)
-	// 	{
-	// 		kind = UNKNOWN;
-	// 	}
-	// 	lsp_message.method = kind;
-	// }
-	// else
-	// {
-	// 	log::debug("lsp message is missing method");
-	// 	return INVALID_MESSAGE~;
-	// }
-	// if (try params = json_obj.get("params"))
-	// {
-	// 	lsp_message.params = maybe::value{Object*}(params);
-	// }
-	// else
-	// {
-	// 	log::verbose("lsp message is missing params");
-	// }
+	io::printfn(json_message);
 	
+	LspMessage? lsp_message = des::deserialize{LspMessage}(&&json::debug_deserializer(json_message));
+	if (catch err = lsp_message)
+	{
+		log::error("failed to deserialize LspMessage: %s", err);
+		return err~;
+	}
+	//lsp_message.allocator = allocator;
+
 	return {
 		.message = lsp_message,
 		.len = message_len
