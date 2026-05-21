@@ -7,27 +7,62 @@ import std::io;
 import std::collections::list;
 import std::net::os;
 import libc;
+import std::os::win32;
 
 String prev_buffer;
 
+// TODO: move this
 // https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/setmode?view=msvc-170
 extern fn int _setmode(int fd, int mode) @if(env::WIN32);
+extern fn Win32_BOOL setConsoleMode(Win32_HANDLE handle, Win32_DWORD mode) @cname("SetConsoleMode") @if(env::WIN32);
+extern fn Win32_BOOL getConsoleMode(Win32_HANDLE handle, Win32_DWORD* mode) @cname("GetConsoleMode") @if(env::WIN32);
+extern fn Win32_HANDLE getStdHandle(Win32_DWORD handle) @cname("GetStdHandle") @if(env::WIN32);
+extern fn Win32_BOOL getNumberOfConsoleInputEvents(Win32_HANDLE hHandle, Win32_DWORD* lpCount) @cname("GetNumberOfConsoleInputEvents") @if(env::WIN32);
+
+const Win32_DWORD ENABLE_LINE_INPUT @if(env::WIN32) = 0x0002;
+const Win32_DWORD ENABLE_ECHO_INPUT @if(env::WIN32) = 0x0004;
+
+// Standard Handles (32-bit unsigned bit patterns)
+const Win32_DWORD STD_INPUT_HANDLE @if(env::WIN32)  = 0xFFFFFFF6; // ((DWORD)-10)
+const Win32_DWORD STD_OUTPUT_HANDLE @if(env::WIN32) = 0xFFFFFFF5; // ((DWORD)-11)
+const Win32_DWORD STD_ERROR_HANDLE @if(env::WIN32)  = 0xFFFFFFF4; // ((DWORD)-12)
 
 <*
 	Set up stdin for continuous reading
 *>
 fn void init()
 {
-	NativeSocket socket = ((NativeSocket)libc::STDIN_FD);
-	if (catch err = socket.set_non_blocking(true))
-	{
-		log::error("Failed to set stdin non blocking: %s", err);
-	}
-
 	$if env::WIN32:
 		_setmode(0, 0x8000); // stdin -> O_BINARY
 		_setmode(1, 0x8000); // stdout -> O_BINARY
+
+		Win32_HANDLE stdin = getStdHandle(STD_INPUT_HANDLE);
+		Win32_DWORD mode;
+
+		if (getConsoleMode(stdin, &mode))
+        {
+			mode &= ~(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT);         	
+			setConsoleMode(stdin, mode);
+        }	
+	$else
+		NativeSocket socket = ((NativeSocket)libc::STDIN_FD);
+		if (catch err = socket.set_non_blocking(true))
+		{
+			log::error("Failed to set stdin non blocking: %s", err);
+		}
 	$endif
+}
+
+fn bool has_input()
+{
+    $if env::WIN32:
+        Win32_HANDLE hStdin = getStdHandle(STD_INPUT_HANDLE);
+        Win32_DWORD count = 0;
+        getNumberOfConsoleInputEvents(hStdin, &count);
+        return count > 0;
+    $else
+        return true;
+    $endif
 }
 
 <*
@@ -63,6 +98,7 @@ fn LspMessage? read(Allocator allocator, String message = {}) => @pool()
 	}
 	else
 	{
+		if (!has_input()) return NO_NEW_DATA~;
 		read_buffer = load_stdin(tmem);
 		if (read_buffer.len == 0) return NO_NEW_DATA~;
 		log::verbose("reading from stdin");

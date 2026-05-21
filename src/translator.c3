@@ -21,7 +21,7 @@ struct LspMessage
 	MessageKind method;
 	MessageParams params @DField({ .tagged_by = "method" });
 	Allocator allocator @DField({ .skip = true });
-  Maybe{int} id;
+  	Maybe{int} id;
 	// Object contents;
 }
 
