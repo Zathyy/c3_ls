@@ -30,11 +30,11 @@ fn LspDidOpenTextDocumentNotification? parse_message(LspMessage message)
 	LspDidOpenTextDocumentNotification self = {
 		.notif = msg_handler::get_notification_struct(message)!,
 	};
-	if (!self.notif.params.has_value)
-	{
-		log::info("params field not found (required in `textDocument/didOpen` method)");
-		return msg_handler::MESSAGE_MISSING_FIELDS~;
-	}
+	// if (!self.notif.params.has_value)
+	// {
+	// 	log::info("params field not found (required in `textDocument/didOpen` method)");
+	// 	return msg_handler::MESSAGE_MISSING_FIELDS~;
+	// }
 	// Object* textDocument_field = self.notif.params.get().@try_get("get", "textDocument")!;
 	// textDocument_field.@try_get("get_string", "uri", self.params)!;
 	// textDocument_field.@try_get("get_string", "languageId", self.params)!;

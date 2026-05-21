@@ -20,19 +20,20 @@ struct LspMessage
 	String rpc @DField({ .rename = "jsonrpc" });
 	MessageKind method;
 	MessageParams params @DField({ .tagged_by = "method" });
-	Allocator allocator @DField({ .skip = true});
-	Object* contents;
+	Allocator allocator @DField({ .skip = true });
+  Maybe{int} id;
+	// Object contents;
 }
 
-fn bool LspMessage.is_initialized(self) @inline => self.contents != null;
+// fn bool LspMessage.is_initialized(self) @inline => self.contents != null;
 
 fn void LspMessage.free(&self)
 {
 	self.rpc.free(self.allocator);
-	if (self.contents != null)
-	{ 
-		self.contents.free();
-	}
+	// if (self.contents != null)
+	// { 
+		// self.contents.free();
+	// }
 }
 
 <*

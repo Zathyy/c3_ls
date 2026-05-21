@@ -34,7 +34,8 @@ struct LspNotification
 {
 	String jsonrpc;
 	MessageKind method;
-	Maybe{Object*} params;
+  MessageParams params @DField({ .tagged_by = "method" });
+	// Maybe{Object*} params;
 }
 
 $expand(derive(LspActionType::name, dessert));
@@ -129,7 +130,7 @@ fn LspRequest? get_request_struct(LspMessage message)
 {
 	return {
 		.jsonrpc = message.rpc,
-		.id = message.contents.get_int("id") ?? NOT_LSP_REQUEST~!,
+		.id = message.id.get() ?? NOT_LSP_REQUEST~!,
 		.method = message.method,
 		.params = message.params,
 	};
@@ -143,8 +144,8 @@ fn LspNotification? get_notification_struct(LspMessage message)
 	return {
 		.jsonrpc = message.rpc,
 		.method = message.method,
-		.params = maybe::value{Object*}(message.contents.get("params"))
-			?? maybe::EMPTY{Object*},
+		.params = message.params, // maybe::value{Object*}(message.contents.get("params"))
+// 			?? maybe::EMPTY{Object*},
 	};
 }
 

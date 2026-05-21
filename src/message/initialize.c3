@@ -14,7 +14,7 @@ struct LspInitializeRequest
 {
 	inline LspRequest request;
 	int processId;
-	struct clientInfo
+	struct client_info @DField({ .rename = "clientInfo" })
 	{
 		String name;
 		String version;
@@ -24,14 +24,14 @@ struct LspInitializeRequest
 $expand(derive(LspInitializeParams::name, dessert));
 struct LspInitializeParams @DStruct({ .rename_all = CAMEL_CASE })
 {
-  int process_id @DField({ .rename = "processId" });
-  Maybe{LspInitializeClientInfo} client_info @DField({ .rename = "clientInfo" });
+  int process_id;
+  Maybe{LspInitializeClientInfo} client_info;
 }
 
 $expand(derive(LspInitializeClientInfo::name, dessert));
-struct LspInitializeClientInfo
+struct LspInitializeClientInfo @DStruct({ .rename_all = CAMEL_CASE })
 {
-  int client_info @DField({ .rename = "clientInfo" });
+  int client_info;
 }
 
 fn LspInitializeRequest? parse_message(LspMessage message)
