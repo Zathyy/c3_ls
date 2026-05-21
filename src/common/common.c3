@@ -26,7 +26,10 @@ enum MessageKind : char (String name) @DEnum({ .as = FIELD, .field = "name" })
 	INITIALIZE   { "initialize" },
 	INITIALIZED  { "initialized" },
 	DID_OPEN     { "textDocument/didOpen" },
+	DID_CHANGE   { "textDocument/didChange" },
 	DID_CLOSE    { "textDocument/didClose" },
+	DID_SAVE     { "textDocument/didSave" },
+	HOVER        { "textDocument/hover" },
 	SHUTDOWN     { "shutdown" },
 	EXIT         { "exit" },
 }
@@ -52,9 +55,20 @@ union MessageParams
 		WorkspaceFolder[] workspace_folders;
 	}
 
-	struct did_open @DStruct({})
+	struct did_open
 	{
 		TextDocumentItem document @DField({ .rename = "textDocument" });
+	}
+
+	struct did_close
+	{
+		DocumentUri document @DField({ .rename = "textDocument" });
+	}
+
+	struct hover 
+	{
+		DocumentUri document @DField({ .rename = "textDocument/hover" });
+		LspPosition position;
 	}
 }
 
@@ -72,4 +86,67 @@ struct TextDocumentItem
 	String language_id @DField({ .rename = "languageId" });
 	int version;
 	String text;
+}
+
+$expand(derive(LspPosition::name, dessert));
+struct LspPosition 
+{
+	<*
+		Line position in a document (zero-based).
+	*>
+	uint line;
+	<*
+		Character offset on a line in a document (zero-based). The meaning of this
+		offset is determined by the negotiated `PositionEncodingKind`.
+				If the character value is greater than the line length it defaults back
+		to the line length.
+	*>
+	uint character;
+}
+
+$expand(derive(LspRange::name, dessert));
+struct LspRange 
+{
+	LspPosition start;
+	LspPosition end;
+}
+
+$expand(derive(Location::name, dessert));
+struct Location 
+{
+	DocumentUri uri;
+	LspRange range;
+}
+
+$expand(derive(DiagnosticSeverity::name, dessert));
+constdef DiagnosticSeverity : int
+{
+	ERROR = 1,
+	
+	WARNING = 2,
+
+	INFORMATION = 3,
+
+	HINT = 4,
+}
+
+$expand(derive(DiagnosticTag::name, dessert));
+constdef DiagnosticTag : int 
+{
+	UNNECESSARY = 1,
+
+	DEPRECATED = 2,
+}
+
+$expand(derive(Diagnostic::name, dessert));
+struct Diagnostic 
+{
+	LspRange range;
+	DiagnosticSeverity severity;
+
+	String source;
+
+	String message;
+
+	DiagnosticTag[] tags;
 }
