@@ -68,7 +68,7 @@ macro deserialize(Deserializer deserializer) <Output> {
       if (deserializer.next_null()!) {
         return null;
       } else {
-        Output v = mem::new(Output::inner);
+        Output v = alloc::new(tmem, Output::inner);
         *v = deserialize{Output::inner}(deserializer)!;
         return v;
       }
@@ -141,6 +141,7 @@ macro void? impl_deserialize(value, Deserializer deserializer) {
           $endforeach
       $endswitch
 
+    $case $Typeof(value)::inner.kind == UNION:
     $case $Typeof(value)::inner.kind == STRUCT:
       var $type = $Typeof(value)::inner;
       var $config = $type.has_tag("dessert:des:struct") ??? $type.get_tag("dessert:des:struct") : (DStructConfig) {};
@@ -155,31 +156,11 @@ macro void? impl_deserialize(value, Deserializer deserializer) {
           next_key!;
           return;
         }
-        $foreach $member : $Typeof(value)::inner.members:
-          DFieldConfig $dessert = $member.has_tag("dessert:des") ??? $member.get_tag("dessert:des") : (DFieldConfig) {};
-          var $name = $dessert.rename.len > 0 ??? $dessert.rename : $member.name;
-          if ($name == next_key) {
-            if (names.contains(next_key)) {
-              return DUPLICATED_KEY~;
-            }
-            $if !$dessert.skip:
-              $if $member.type.name == @sprintf("%s.%s", $Typeof(value)::inner.name, $member.name):
-                impl_deserialize(&value.$eval($member.name), deserializer)!;
-              $else
-                $Typefrom($member.type)? next_value = deserialize{$member.type}(deserializer);
-                if (catch next_value) {
-                  io::eprintfn("Error deserializing key: %s", next_key);
-                  next_value!;
-                  return;
-                }
-                value.$eval($member.name) = next_value;
-              $endif
-            $endif
 
-            names.push($member.name);
-            continue;
-          }
+        $foreach $member : $Typeof(value)::inner.members:
+          if (@des_field(deserializer, value, $member, next_key, names)!) continue;
         $endforeach
+
         $if $config.deny_unknown_fields:
           io::eprintfn("While deserializing '" +++ $Typeof(value)::inner.name +++ "' (which denies unknown fields), encountered unknown field '%s'.", next_key);
           return UNKNOWN_FIELD~;
@@ -190,4 +171,40 @@ macro void? impl_deserialize(value, Deserializer deserializer) {
       }
       deserializer.struct_end($type.name)!;
   $endswitch
+}
+
+
+macro bool? @des_field(deserializer, value, $member, next_key, #names) @local {
+  DFieldConfig $dessert = $member.has_tag("dessert:des") ??? $member.get_tag("dessert:des") : (DFieldConfig) {};
+  var $name = $dessert.rename.len > 0 ??? $dessert.rename : $member.name;
+  $if $member.type.name == @sprintf("%s.$anon", $Typeof(value)::inner.name):
+    $foreach $m : $member.type.members:
+      if (@des_field(deserializer, &$member.get(*value), $m, next_key, #names)!) return true;
+    $endforeach
+  $endif
+
+  if ($name == next_key) {
+    if (#names.contains(next_key)) {
+      return DUPLICATED_KEY~;
+    }
+    $if !$dessert.skip:
+      $if $member.type.name == @sprintf("%s.%s", $Typeof(value)::inner.name, $member.name)
+        ||| $member.type.name == @sprintf("%s.$anon", $Typeof(value)::inner.name):
+        impl_deserialize(&$member.get(*value), deserializer)!;
+      $else
+        $Typefrom($member.type)? next_value = deserialize{$member.type}(deserializer);
+        if (catch next_value) {
+          io::eprintfn("Error deserializing key: %s", next_key);
+          next_value!;
+          return false;
+        }
+        $member.set(*value, next_value);
+      $endif
+    $endif
+
+    #names.push($member.name);
+    return true;
+  }
+
+  return false;
 }

@@ -75,12 +75,16 @@ attrdef @DStruct(DStructConfig config) = @tag("dessert:ser:struct", config), @ta
 attrdef @DStructSer(DStructConfig config) = @tag("dessert:ser:struct", config);
 attrdef @DStructDes(DStructConfig config) = @tag("dessert:des:struct", config);
 
-// struct DUnionConfig {
-//   int x;
-// }
-// attrdef @DUnion(DUnionConfig config) = @tag("dessert:ser:union", config), @tag("dessert:des:union", config);
-// attrdef @DUnionSer(DUnionConfig config) = @tag("dessert:ser:union", config);
-// attrdef @DUnionDes(DUnionConfig config) = @tag("dessert:des:union", config);
+struct DUnionConfig {
+  <*
+    Specify another field to be used as the tag for this field type.
+  *>
+  String tagged_by;
+  // bool flatten;
+}
+attrdef @DUnion(DUnionConfig config) = @tag("dessert:ser:union", config), @tag("dessert:des:union", config);
+attrdef @DUnionSer(DUnionConfig config) = @tag("dessert:ser:union", config);
+attrdef @DUnionDes(DUnionConfig config) = @tag("dessert:des:union", config);
 
 // Old, deprecated attributes
 attrdef @Dessert(DFieldConfig config) @deprecated("Use @DField instead") = @tag("dessert:ser", config), @tag("dessert:des", config);

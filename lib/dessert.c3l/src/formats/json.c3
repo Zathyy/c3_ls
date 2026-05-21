@@ -105,7 +105,7 @@ fn String? JsonValue.to_string(self) {
       return string::format(mem, "\"%s\"", self.value.s.replace(mem, "\"", "\\\""));
     case ARRAY:
       DString s;
-      s.init(mem);
+      s.init(tmem);
       s.append("[");
       long l_len = self.value.l.len();
       foreach (i, item : self.value.l) {
@@ -118,7 +118,7 @@ fn String? JsonValue.to_string(self) {
       return s.str_view();
     case DICT:
       DString s;
-      s.init(mem);
+      s.init(tmem);
       s.append("{");
       long d_len = self.value.d.len();
       
@@ -141,12 +141,12 @@ fn String? JsonValue.to_string(self) {
 
 fn String to_pretty_string(JsonValue self, int indent = 2, int depth = 0) @private {
   DString pad;
-  pad.init(mem);
+  pad.init(tmem);
   defer pad.free();
   pad.append_repeat(' ', (usz) (indent * depth));
 
   DString inner_pad;
-  inner_pad.init(mem);
+  inner_pad.init(tmem);
   inner_pad.append_repeat(' ', (usz) (indent * (depth + 1)));
 
   switch (self.kind) {
@@ -162,7 +162,7 @@ fn String to_pretty_string(JsonValue self, int indent = 2, int depth = 0) @priva
       return string::format(mem, "\"%s\"", self.value.s.replace(mem, "\"", "\\\""));
     case ARRAY:
       DString s;
-      s.init(mem);
+      s.init(tmem);
       long l_len = self.value.l.len();
       if (l_len == 0) return "[]";
       s.append("[\n");
@@ -177,7 +177,7 @@ fn String to_pretty_string(JsonValue self, int indent = 2, int depth = 0) @priva
       return s.str_view();
     case DICT:
       DString s;
-      s.init(mem);
+      s.init(tmem);
       long d_len = self.value.d.len();
       if (d_len == 0) return "{}";
       s.append("{\n");
@@ -220,7 +220,7 @@ struct JsonSerializer (Serializer) {
 
 fn JsonSerializer serializer() {
   List{JsonValue} output;
-  output.init(mem);
+  output.init(tmem);
   return { .output = output };
 }
 
@@ -246,7 +246,7 @@ fn void? JsonSerializer.serialize_string(&self, String s) @dynamic {
 
 fn void? JsonSerializer.struct_start(&self, String name) @dynamic {
   LinkedHashMap{String, JsonValue} d;
-  d.init(mem);
+  d.init(tmem);
   self.output.push({ .kind = JsonValueKind.DICT, .value = { .d = d } });
 }
 
@@ -255,7 +255,7 @@ fn void? JsonSerializer.struct_end(&self, String name) @dynamic {}
 fn void? JsonSerializer.serialize_slice_start(&self, long len) @dynamic {}
 fn void? JsonSerializer.serialize_slice_end(&self, long len) @dynamic {
   List{JsonValue} l;
-  l.init(mem);
+  l.init(tmem);
   for (int i = 0; i < len; i++) {
     l.push_front(self.output.pop()!);
   }
@@ -303,7 +303,7 @@ fn void? JsonStringSerializer.serialize_long(&self, long i) @dynamic {
 }
 
 fn void? JsonStringSerializer.serialize_double(&self, double f) @dynamic {
-  self.output.append(string::tformat("%d", f));
+  self.output.append(string::tformat("%f", f));
 }
 
 fn void? JsonStringSerializer.serialize_string(&self, String s) @dynamic {
@@ -510,7 +510,7 @@ fn String? JsonDeserializer.next_string(&self) @dynamic {
     return INVALID_STRING~;
   }
   DString val;
-  val.init(mem);
+  val.init(tmem);
   while (Char32 c = self.next()!, c != '"') {
     if (c == '\\') {
       Char32 escape = self.next()!;

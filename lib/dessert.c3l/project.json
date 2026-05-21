@@ -23,6 +23,10 @@
   "targets": {
     "dessert": {
       "type": "static-lib"
+    },
+    "example": {
+      "type": "executable",
+      "features": ["EXE"]
     }
   },
   "cpu": "generic",

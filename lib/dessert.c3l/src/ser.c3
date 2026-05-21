@@ -5,6 +5,9 @@ import std::io;
 import std::core::types;
 import std::collections::maybe;
 
+const char[256] TO_UPPER @private = { ['a'..'z'] = 'a' - 'A' };
+macro char @to_upper(char $c) => $c - TO_UPPER[$c];
+
 interface Serializer {
   fn void? struct_start(String name);
   fn void? serialize_field_start(String name, FieldAttrs fmt);
@@ -71,14 +74,14 @@ macro impl_serialize(s, Serializer serializer) {
         DFieldConfig $config = $member.has_tag("dessert:ser") ??? $member.get_tag("dessert:ser") : {};
         $if !$config.skip:
           $if $config.validator.len > 0: 
-            if (!s.$eval($config.validator)(s.$eval($member.name))) {
+            if (!s.$eval($config.validator)($member.get(*s))) {
               return VALIDATOR_ERROR~;
             }
           $endif
 
           $switch:
             $case $config.skip_if_empty:
-              if (!@is_empty(s.$eval($member.name))) {
+              if (!@is_empty($member.get(*s))) {
                 @serialize_field(serializer, $config, s, $member, $struct_config)!;
               }
 
@@ -100,20 +103,100 @@ macro impl_serialize(s, Serializer serializer) {
   $endswitch
 }
 
-macro @impl_serialize_struct($Type, s, Serializer serializer) @local {
-  DStructConfig $struct_config = $Type::has_tag("dessert:ser:struct") ??? $Type::get_tag("dessert:ser:struct") : {};
+
+macro @rename(DFieldConfig $config, String $name, DStructConfig $struct_config) @local @const {
+  $if $config.rename.len > 0:
+    return $config.rename;
+  $else
+    $switch $struct_config.rename_all:
+      $case VERBATIM:
+        return $name;
+
+      $case CAMEL_CASE:
+        String $new_name = "";
+        $for int $i = 0; $i < $name.len; $i++:
+          $if $name[$i] == '_':
+            $new_name +++= @to_upper($name[$i+1]);
+            $i++;
+          $else
+            $new_name +++= $name[$i];
+          $endif
+        $endfor
+        return $new_name;
+
+      $default:
+        $error @sprintf("CaseConvention %s not supported for now.");
+    $endswitch
+  $endif
+}
+
+macro @serialize_field(serializer, DFieldConfig $config, s, $member, DStructConfig $struct_config) @local {
+  bool $is_flatten = $config.flatten ||| $member.name.len == 0;
+
+  $switch:
+    // $case $member.type.kind == UNION:
+    //   @serialize_union_field(serializer, $config, s, $member, $struct_config);
+
+
+    $case $member.type.name == @sprintf("%s.%s", $Typeof(s)::inner.name, $member.name):
+    $case $member.type.name == @sprintf("%s.$anon", $Typeof(s)::inner.name):
+      $if !$is_flatten:
+        serializer.serialize_field_start(
+          @rename($config, $member.name, $struct_config),
+          $config.fmt,
+        )!;
+        serializer.struct_start($member.type.name)!;
+      $endif
+
+      $switch $member.type.kind:
+        $case UNION:
+          @impl_serialize_union($member.type, s, serializer, $member, $config, $struct_config)!;
+
+        $case STRUCT:
+          @impl_serialize_struct($member.type, &$member.get(*s), serializer, $struct_config)!;
+      $endswitch
+
+      $if !$is_flatten:
+        serializer.struct_end($member.type.name)!;
+        serializer.serialize_field_end(
+          @rename($config, $member.name, $struct_config),
+          $config.fmt,
+        )!;
+      $endif
+
+    $default:
+      $if !$is_flatten:
+        serializer.serialize_field_start(
+          @rename($config, $member.name, $struct_config),
+          $config.fmt,
+        )!;
+      $endif
+
+      serialize_value(serializer, $member.get(*s), $config)!;
+
+      $if !$is_flatten:
+        serializer.serialize_field_end(
+          @rename($config, $member.name, $struct_config),
+          $config.fmt,
+        )!;
+      $endif
+  $endswitch
+}
+
+macro @impl_serialize_struct($Type, s, Serializer serializer, DStructConfig $struct_config_parent) @local {
+  DStructConfig $struct_config = $Type::has_tag("dessert:ser:struct") ??? $Type::get_tag("dessert:ser:struct") : $struct_config_parent;
   $foreach $member : $Type::members:
     DFieldConfig $config = $member.has_tag("dessert:ser") ??? $member.get_tag("dessert:ser") : (DFieldConfig) {};
     $if !$config.skip:
       $if $config.validator.len > 0: 
-        if (!s.$eval($config.validator)(s.$eval($member.name))) {
+        if (!s.$eval($config.validator)($member.get(s))) {
           return VALIDATOR_ERROR~;
         }
       $endif
 
       $switch:
         $case $config.skip_if_empty:
-          if (!@is_empty(s.$eval($member.name))) {
+          if (!@is_empty($member.get(*s))) {
             @serialize_field(serializer, $config, s, $member, $struct_config)!;
           }
 
@@ -130,80 +213,75 @@ macro @impl_serialize_struct($Type, s, Serializer serializer) @local {
     $endif
   $endforeach
 }
+/*
+struct Test {
+  int kind;
+  union p @DField({ .tagged_by = "kind" }) {
+    int a;
+    double b;
+  }
+}
 
-macro @rename(DFieldConfig $config, String $name, DStructConfig $struct_config) @local @const {
-  $if $config.rename.len > 0:
-    return $config.rename;
-  $else
-    $switch $struct_config.rename_all:
-      $case VERBATIM:
-        return $name;
+OUTPUT: {
+  "kind": 1,
+  "p": {
+    "b": 222.2,
+  }
+}
 
-      $case CAMEL_CASE:
-        String $new_name = "";
-        $for int $i = 0; $i < $name.len; $i++:
-          $if $name[$i] == "_":
-            $new_name +++= ascii::@to_upper($name[$i+1]);
-            $i++;
-          $else
-            $new_name +++= $name[$i];
-          $endif
-        $endfor
-        return $new_name;
+struct Test2 {
+  int kind;
+  union p @DField({ .tagged_by = "kind" }) @DUnion({ .flatten = true }) {
+    int a;
+    double b;
+  }
+}
 
-      $default:
-        $error @sprintf("CaseConvention %s not supported for now.");
-    $endswitch
+OUTPUT 2: {
+  "kind": 1,
+  "p": 222.2,
+}
+
+struct Test3 {
+  int kind;
+  union @DUnion({ .tagged_by = "kind" }) {
+    int a;
+    double b;
+  }
+}
+
+struct Test3 {
+  int kind;
+  union p @DUnion({ .tagged_by = "kind" }) @DField({ .flatten = true }) {
+    int a;
+    double b;
+  }
+}
+
+OUTPUT 3: {
+  "kind": 1,
+  "b": 222.2,
+}
+*/
+
+macro @impl_serialize_union($UType, s, Serializer serializer, $member, DFieldConfig $config, DStructConfig $struct_config) @local {
+  DUnionConfig $union_config = $UType::has_tag("dessert:ser:union") ??? $UType::get_tag("dessert:ser:union") : {};
+  $if $union_config.tagged_by.len == 0:
+    $error @sprintf("Unions must be tagged by another field's value (member %s with type %s)", $member.name, $UType::name);
   $endif
+  var tagged_value = s.$eval($union_config.tagged_by);
+  var $the_switch = "switch ((sz) tagged_value) {";
+
+  $foreach $i, $m : $UType::members:
+    $the_switch +++= @sprintf("case %s:\n", $i);
+    $the_switch +++= @sprintf("@serialize_field(serializer, $config, &$member.get(*s), $UType::members[%s], $struct_config)!;\n", $i);
+
+  $endforeach
+
+  $the_switch +++= "}";
+  $expand($the_switch);
 }
 
-macro @serialize_field(serializer, DFieldConfig $config, s, $member, DStructConfig $struct_config) @local {
-  $switch:
-    $case $member.type.name == @sprintf("%s.%s", $Typeof(s)::inner.name, $member.name):
-      $if !$config.flatten:
-        serializer.serialize_field_start(
-          @rename($config, $member.name, $struct_config),
-          $config.fmt,
-        )!;
-        serializer.struct_start($member.type.name)!;
-      $endif
-
-      @impl_serialize_struct($member.type, &s.$eval($member.name), serializer)!;
-
-      $if !$config.flatten:
-        serializer.struct_end($member.type.name)!;
-        serializer.serialize_field_end(
-          @rename($config, $member.name, $struct_config),
-          $config.fmt,
-        )!;
-      $endif
-
-    $default:
-      $if !$config.flatten:
-        serializer.serialize_field_start(
-          @rename($config, $member.name, $struct_config),
-          $config.fmt,
-        )!;
-      $endif
-
-      serialize_value(serializer, s.$eval($member.name), $config)!;
-
-      $if !$config.flatten:
-        serializer.serialize_field_end(
-          @rename($config, $member.name, $struct_config),
-          $config.fmt,
-        )!;
-      $endif
-  $endswitch
-}
-
-macro @serialize_union_field(serializer, DFieldConfig $config, s, $member, DStructConfig $struct_config) @local {
-  $if $config.tagged_by.len == 0:
-    $error @sprintf("Error for field '%s' : Unions must be tagged by the value of another field. Add the `.tagged_by` option to this field's config.", $member.name);
-  $endif
-
-
-}
 
 macro @is_empty(#value) {
   $switch:

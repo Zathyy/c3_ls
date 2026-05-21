@@ -559,7 +559,7 @@ fn void test_des_inline_substruct_roundtrip() @test {
   assert(copy.pos.y == -3);
 }
 
-// ── Tests: union ──────────────────────────────────────────────────────────────
+// ── Tests: union (custom serialize/deserialize) ───────────────────────────────
 
 union DUVariant {
   long i;
@@ -603,6 +603,119 @@ fn void test_des_union_roundtrip() @test {
   DTaggedUnion copy = des::deserialize{DTaggedUnion}(&&json::deserializer(j.to_string()!!))!!;
   assert(copy.tag == 0);
   assert(copy.val.i == 42);
+}
+
+// ── Tests: @DUnion tagged union (named) ──────────────────────────────────────
+
+struct DDUnionNamed {
+  int kind;
+  union p @DUnion({ .tagged_by = "kind" }) {
+    int    first;
+    double second;
+    String third;
+  }
+}
+fn void? DDUnionNamed.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
+fn void? DDUnionNamed.deserialize(&self, Deserializer deserializer) => des::impl_deserialize(self, deserializer);
+
+fn void test_des_dunion_named_first() @test {
+  const String JSON = `{"kind": 0, "p": {"first": 42}}`;
+  DDUnionNamed v = des::deserialize{DDUnionNamed}(&&json::deserializer(JSON))!!;
+  assert(v.kind == 0);
+  assert(v.p.first == 42);
+}
+
+fn void test_des_dunion_named_second() @test {
+  const String JSON = `{"kind": 1, "p": {"second": 3.14}}`;
+  DDUnionNamed v = des::deserialize{DDUnionNamed}(&&json::deserializer(JSON))!!;
+  assert(v.kind == 1);
+  double diff = v.p.second - 3.14;
+  if (diff < 0) diff = -diff;
+  assert(diff < 1e-9);
+}
+
+fn void test_des_dunion_named_third() @test {
+  const String JSON = `{"kind": 2, "p": {"third": "hello"}}`;
+  DDUnionNamed v = des::deserialize{DDUnionNamed}(&&json::deserializer(JSON))!!;
+  assert(v.kind == 2);
+  assert(v.p.third == "hello");
+}
+
+fn void test_des_dunion_named_roundtrip_first() @test {
+  DDUnionNamed orig = { .kind = 0, .p = { .first = 99 } };
+  JsonSerializer s = json::serializer();
+  JsonValue j = ser::serialize(&s, orig)!!;
+  defer j.free();
+
+  DDUnionNamed copy = des::deserialize{DDUnionNamed}(&&json::deserializer(j.to_string()!!))!!;
+  assert(copy.kind == 0);
+  assert(copy.p.first == 99);
+}
+
+fn void test_des_dunion_named_roundtrip_second() @test {
+  DDUnionNamed orig = { .kind = 1, .p = { .second = 1.5 } };
+  JsonSerializer s = json::serializer();
+  JsonValue j = ser::serialize(&s, orig)!!;
+  defer j.free();
+
+  DDUnionNamed copy = des::deserialize{DDUnionNamed}(&&json::deserializer(j.to_string()!!))!!;
+  assert(copy.kind == 1);
+  double diff = copy.p.second - 1.5;
+  if (diff < 0) diff = -diff;
+  assert(diff < 1e-9);
+}
+
+// ── Tests: @DUnion anonymous union (flattened) ────────────────────────────────
+
+struct DDUnionAnon {
+  int kind;
+  union @DUnion({ .tagged_by = "kind" }) {
+    int    foo;
+    double bar;
+  }
+}
+fn void? DDUnionAnon.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
+fn void? DDUnionAnon.deserialize(&self, Deserializer deserializer) => des::impl_deserialize(self, deserializer);
+
+fn void test_des_dunion_anon_first() @test {
+  // foo is a top-level key (union flattened into parent)
+  const String JSON = `{"kind": 0, "foo": 77}`;
+  DDUnionAnon v = des::deserialize{DDUnionAnon}(&&json::deserializer(JSON))!!;
+  assert(v.kind == 0);
+  assert(v.foo == 77);
+}
+
+fn void test_des_dunion_anon_second() @test {
+  const String JSON = `{"kind": 1, "bar": 9.9}`;
+  DDUnionAnon v = des::deserialize{DDUnionAnon}(&&json::deserializer(JSON))!!;
+  assert(v.kind == 1);
+  double diff = v.bar - 9.9;
+  if (diff < 0) diff = -diff;
+  assert(diff < 1e-9);
+}
+
+fn void test_des_dunion_anon_roundtrip_first() @test {
+  DDUnionAnon orig = { .kind = 0, .foo = 55 };
+  JsonSerializer s = json::serializer();
+  JsonValue j = ser::serialize(&s, orig)!!;
+  defer j.free();
+
+  DDUnionAnon copy = des::deserialize{DDUnionAnon}(&&json::deserializer(j.to_string()!!))!!;
+  assert(copy.kind == 0);
+  assert(copy.foo == 55);
+}
+
+fn void test_des_dunion_anon_roundtrip_second() @test {
+  DDUnionAnon orig = { .kind = 1, .bar = 7.25 };
+  JsonSerializer s = json::serializer();
+  JsonValue j = ser::serialize(&s, orig)!!;
+  defer j.free();
+
+  DDUnionAnon copy = des::deserialize{DDUnionAnon}(&&json::deserializer(j.to_string()!!))!!;
+  assert(copy.kind == 1);
+  double diff = copy.bar - 7.25;
+  if (diff < 0) diff = -diff;
+  assert(diff < 1e-9);
 }
 
 fn void test_des_roundtrip_null_pointer() @test {

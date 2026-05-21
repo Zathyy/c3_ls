@@ -2,6 +2,12 @@
 
 All notable changes to dessert are documented here.
 
+## 2026-05-20
+
+- Added tag union support for serialization and deserialization
+- Added unnamed struct and union field support in structs
+- Added `@DUnion` to set union serialization and deserialization options
+
 ## 2026-05-15
 
 - Added tag union support inside structs
