@@ -31,7 +31,7 @@
   "targets": {
     "c3_parser": {
       "type": "executable",
-			"features": [ "CLI" ],
+			"features": [ "C3_PARSER_CLI" ],
     },
     "c3_parser_lib": {
       "type": "static-lib",

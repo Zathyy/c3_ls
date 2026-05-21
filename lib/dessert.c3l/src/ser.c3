@@ -67,6 +67,9 @@ macro impl_serialize(s, Serializer serializer) {
     $case $Typeof(s)::inner.kind == ENUM:
       impl_serialize_enum(s, serializer)!;
 
+    $case $Typeof(s)::inner.kind == CONSTDEF:
+      return serialize_value(serializer, ($Typefrom($Typeof(s)::inner.inner)) *s, (DFieldConfig) {});
+
     $case $Typeof(s)::inner.kind == STRUCT:
       var $type = $Typeof(s)::inner;
       DStructConfig $struct_config = $type.has_tag("dessert:ser:struct") ??? $type.get_tag("dessert:ser:struct") : {};
