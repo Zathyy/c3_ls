@@ -20,7 +20,7 @@ struct Person {
   String name;
   Animal[] pets;
   int x;
-  union @DUnion({ .tagged_by = "x" }) {
+  union @DField({ .tagged_by = "x" }) {
     int foo;
     double bar;
   }
@@ -28,8 +28,8 @@ struct Person {
   bool is_cool @DField({ .skip = true });
 }
 
-fn void? Person.serialize(&self, Serializer serializer) => 
-  ser::impl_serialize(self, serializer);
+// fn void? Person.serialize(&self, Serializer serializer) => 
+//   ser::impl_serialize(self, serializer);
 
 // fn void? Person.deserialize(&self, Deserializer deserializer) =>
 //   des::impl_deserialize(self, deserializer);
@@ -61,25 +61,28 @@ fn void? Person.serialize(&self, Serializer serializer) =>
 //   return 0;
 // }
 
+// $expand(derive(Response::name, dessert::serialize));
+// struct Response {
+//   int kind;
+//   union params @DField({ .tagged_by = "kind" }) {
+//     int first;
+//     double second;
+//     String third;
+//   }
+// }
+
+union MyUnion @DUnion({ .inlined = true }) {
+  int first;
+  double second;
+  String third;
+}
+
 $expand(derive(Request::name, dessert));
 struct Request {
   int kind;
-  union p @DUnion({ .tagged_by = "kind" }) {
-    int first;
-    double second;
-    String third;
-  }
+  MyUnion p @DField({ .tagged_by = "kind" });
 }
 
-$expand(derive(Response::name, dessert::serialize));
-struct Response {
-  int kind;
-  union params @DUnion({ .tagged_by = "kind" }) {
-    int first;
-    double second;
-    String third;
-  }
-}
 fn void main() {
   Request req = { .kind = 1, .p = {.second = 2.2} };
   String s = ser::serialize(&&json::string_serializer(), req)!!;

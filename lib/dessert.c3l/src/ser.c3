@@ -98,8 +98,8 @@ macro impl_serialize(s, Serializer serializer) {
         $endif
       $endforeach
 
-    // $default:
-    //   $error @sprintf("Unsupported type for serialization %s (%s)", $Typeof(s)::inner, $Typeof(s)::inner.kind);
+    $default:
+      $error @sprintf("Unsupported type for serialization %s (%s)", $Typeof(s)::inner, $Typeof(s)::inner.kind);
   $endswitch
 }
 
@@ -133,54 +133,41 @@ macro @rename(DFieldConfig $config, String $name, DStructConfig $struct_config) 
 macro @serialize_field(serializer, DFieldConfig $config, s, $member, DStructConfig $struct_config) @local {
   bool $is_flatten = $config.flatten ||| $member.name.len == 0;
 
-  $switch:
-    // $case $member.type.kind == UNION:
-    //   @serialize_union_field(serializer, $config, s, $member, $struct_config);
+  $if !$is_flatten:
+    serializer.serialize_field_start(
+      @rename($config, $member.name, $struct_config),
+      $config.fmt,
+    )!;
+  $endif
 
+  $if $member.type.kind == UNION:
+    @impl_serialize_union($member.type, s, serializer, $member, $config, $struct_config)!;
 
-    $case $member.type.name == @sprintf("%s.%s", $Typeof(s)::inner.name, $member.name):
-    $case $member.type.name == @sprintf("%s.$anon", $Typeof(s)::inner.name):
-      $if !$is_flatten:
-        serializer.serialize_field_start(
-          @rename($config, $member.name, $struct_config),
-          $config.fmt,
-        )!;
-        serializer.struct_start($member.type.name)!;
-      $endif
+  $else
+    $switch:
+      $case $member.type.name == @sprintf("%s.%s", $Typeof(s)::inner.name, $member.name):
+      $case $member.type.name == @sprintf("%s.$anon", $Typeof(s)::inner.name):
+        $if !$is_flatten:
+          serializer.struct_start($member.type.name)!;
+        $endif
 
-      $switch $member.type.kind:
-        $case UNION:
-          @impl_serialize_union($member.type, s, serializer, $member, $config, $struct_config)!;
+        @impl_serialize_struct($member.type, &$member.get(*s), serializer, $struct_config)!;
 
-        $case STRUCT:
-          @impl_serialize_struct($member.type, &$member.get(*s), serializer, $struct_config)!;
-      $endswitch
+        $if !$is_flatten:
+          serializer.struct_end($member.type.name)!;
+        $endif
 
-      $if !$is_flatten:
-        serializer.struct_end($member.type.name)!;
-        serializer.serialize_field_end(
-          @rename($config, $member.name, $struct_config),
-          $config.fmt,
-        )!;
-      $endif
+      $default:
+        serialize_value(serializer, $member.get(*s), $config)!;
+    $endswitch
+  $endif
 
-    $default:
-      $if !$is_flatten:
-        serializer.serialize_field_start(
-          @rename($config, $member.name, $struct_config),
-          $config.fmt,
-        )!;
-      $endif
-
-      serialize_value(serializer, $member.get(*s), $config)!;
-
-      $if !$is_flatten:
-        serializer.serialize_field_end(
-          @rename($config, $member.name, $struct_config),
-          $config.fmt,
-        )!;
-      $endif
-  $endswitch
+  $if !$is_flatten:
+    serializer.serialize_field_end(
+      @rename($config, $member.name, $struct_config),
+      $config.fmt,
+    )!;
+  $endif
 }
 
 macro @impl_serialize_struct($Type, s, Serializer serializer, DStructConfig $struct_config_parent) @local {
@@ -213,73 +200,36 @@ macro @impl_serialize_struct($Type, s, Serializer serializer, DStructConfig $str
     $endif
   $endforeach
 }
-/*
-struct Test {
-  int kind;
-  union p @DField({ .tagged_by = "kind" }) {
-    int a;
-    double b;
-  }
-}
-
-OUTPUT: {
-  "kind": 1,
-  "p": {
-    "b": 222.2,
-  }
-}
-
-struct Test2 {
-  int kind;
-  union p @DField({ .tagged_by = "kind" }) @DUnion({ .flatten = true }) {
-    int a;
-    double b;
-  }
-}
-
-OUTPUT 2: {
-  "kind": 1,
-  "p": 222.2,
-}
-
-struct Test3 {
-  int kind;
-  union @DUnion({ .tagged_by = "kind" }) {
-    int a;
-    double b;
-  }
-}
-
-struct Test3 {
-  int kind;
-  union p @DUnion({ .tagged_by = "kind" }) @DField({ .flatten = true }) {
-    int a;
-    double b;
-  }
-}
-
-OUTPUT 3: {
-  "kind": 1,
-  "b": 222.2,
-}
-*/
 
 macro @impl_serialize_union($UType, s, Serializer serializer, $member, DFieldConfig $config, DStructConfig $struct_config) @local {
-  DUnionConfig $union_config = $UType::has_tag("dessert:ser:union") ??? $UType::get_tag("dessert:ser:union") : {};
-  $if $union_config.tagged_by.len == 0:
+  DUnionConfig $union_config = @get_tag($UType, "dessert:ser:union", (DUnionConfig) {});
+  $if $config.tagged_by.len == 0:
     $error @sprintf("Unions must be tagged by another field's value (member %s with type %s)", $member.name, $UType::name);
   $endif
-  var tagged_value = s.$eval($union_config.tagged_by);
-  var $the_switch = "switch ((sz) tagged_value) {";
+
+  DFieldConfig $field_config = {...$config, .flatten = $union_config.inlined};
+
+  var tag_value = s.$eval($config.tagged_by);
+  var $the_switch = "switch ((sz) tag_value) {";
 
   $foreach $i, $m : $UType::members:
     $the_switch +++= @sprintf("case %s:\n", $i);
-    $the_switch +++= @sprintf("@serialize_field(serializer, $config, &$member.get(*s), $UType::members[%s], $struct_config)!;\n", $i);
+    $the_switch +++= @sprintf("@serialize_field(serializer, $field_config, &$member.get(*s), $UType::members[%s], $struct_config)!;\n", $i);
 
   $endforeach
 
   $the_switch +++= "}";
+
+  bool $is_flatten = $union_config.inlined ||| $member.name.len == 0;
+  $if !$is_flatten:
+    serializer.struct_start($member.type.name)!;
+  $endif
+
   $expand($the_switch);
+
+  $if !$is_flatten:
+    serializer.struct_end($member.type.name)!;
+  $endif
 }
 
 

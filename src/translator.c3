@@ -19,7 +19,7 @@ struct LspMessage
 {
 	String rpc @DField({ .rename = "jsonrpc" });
 	MessageKind method;
-	MessageParams params @DUnion({ .tagged_by = "method" });
+	MessageParams params @DField({ .tagged_by = "method" });
 	Allocator allocator @DField({ .skip = true});
 	Object* contents;
 }

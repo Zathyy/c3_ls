@@ -31,7 +31,6 @@ enum MessageKind : char (String name) @DEnum({ .as = FIELD, .field = "name" })
 	EXIT         { "exit" },
 }
 
-$expand(derive(MessageParams::name, dessert));
 union MessageParams
 {
 	Object* unknown;

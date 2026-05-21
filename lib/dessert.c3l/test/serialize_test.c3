@@ -509,18 +509,14 @@ fn void test_ser_inline_substruct_flatten() @test {
 
 // ── Tests: union (custom serialize) ──────────────────────────────────────────
 
-union SUVariant {
+union SUVariant @DUnion({ .inlined = true }) {
   long i;
   double f;
 }
 
-fn void? SUVariant.serialize(&self, Serializer serializer) {
-  serializer.serialize_long(self.i)!;
-}
-
 struct STaggedUnion {
   int      tag;
-  SUVariant val;
+  SUVariant val @DField({ .tagged_by = "tag" });
 }
 fn void? STaggedUnion.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
 
@@ -545,11 +541,11 @@ fn void test_ser_union_negative_value() @test {
   assert(j.value.d.get("val")!!.value.i == -999);
 }
 
-// ── Tests: @DUnion tagged union (named) ──────────────────────────────────────
+// ── Tests: @DField tagged union (named) ──────────────────────────────────────
 
 struct SDUnionNamed {
   int kind;
-  union p @DUnion({ .tagged_by = "kind" }) {
+  union p @DField({ .tagged_by = "kind" }) {
     int   first;
     double second;
     String third;
@@ -612,11 +608,11 @@ fn void test_ser_dunion_named_only_active_member() @test {
   if (catch p.value.d.get("third"))  { /* correct: absent */ } else { assert(false); }
 }
 
-// ── Tests: @DUnion anonymous union (flattened) ────────────────────────────────
+// ── Tests: @DField anonymous union (flattened) ────────────────────────────────
 
 struct SDUnionAnon {
   int kind;
-  union @DUnion({ .tagged_by = "kind" }) {
+  union @DField({ .tagged_by = "kind" }) {
     int    foo;
     double bar;
   }

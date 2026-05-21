@@ -561,22 +561,14 @@ fn void test_des_inline_substruct_roundtrip() @test {
 
 // ── Tests: union (custom serialize/deserialize) ───────────────────────────────
 
-union DUVariant {
+union DUVariant @DUnion({ .inlined = true }) {
   long i;
   double f;
 }
 
-fn void? DUVariant.serialize(&self, Serializer serializer) {
-  serializer.serialize_long(self.i)!;
-}
-
-fn void? DUVariant.deserialize(&self, Deserializer deserializer) {
-  self.i = deserializer.next_long()!;
-}
-
 struct DTaggedUnion {
   int      tag;
-  DUVariant val;
+  DUVariant val @DField({ .tagged_by = "tag"});
 }
 fn void? DTaggedUnion.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
 fn void? DTaggedUnion.deserialize(&self, Deserializer deserializer) => des::impl_deserialize(self, deserializer);
@@ -605,11 +597,11 @@ fn void test_des_union_roundtrip() @test {
   assert(copy.val.i == 42);
 }
 
-// ── Tests: @DUnion tagged union (named) ──────────────────────────────────────
+// ── Tests: @DField tagged union (named) ──────────────────────────────────────
 
 struct DDUnionNamed {
   int kind;
-  union p @DUnion({ .tagged_by = "kind" }) {
+  union p @DField({ .tagged_by = "kind" }) {
     int    first;
     double second;
     String third;
@@ -665,11 +657,11 @@ fn void test_des_dunion_named_roundtrip_second() @test {
   assert(diff < 1e-9);
 }
 
-// ── Tests: @DUnion anonymous union (flattened) ────────────────────────────────
+// ── Tests: @DField anonymous union (flattened) ────────────────────────────────
 
 struct DDUnionAnon {
   int kind;
-  union @DUnion({ .tagged_by = "kind" }) {
+  union @DField({ .tagged_by = "kind" }) {
     int    foo;
     double bar;
   }

@@ -3,6 +3,7 @@ import std::collections::list;
 import std::collections::maybe;
 import std::collections::object;
 import std::io;
+import dessert::utils;
 
 
 interface Deserializer {
@@ -47,7 +48,7 @@ interface Deserializer {
 }
 
 faultdef VALIDATOR_ERROR;
-faultdef DUPLICATED_KEY, INVALID_ENUM_VALUE, UNKNOWN_FIELD;
+faultdef DUPLICATED_KEY, INVALID_ENUM_VALUE, UNKNOWN_FIELD, INLINED_UNION_BEFORE_TAG;
 
 // Should be treated as a protocol, don't derive it directly
 interface Deserializable {
@@ -147,6 +148,7 @@ macro void? impl_deserialize(value, Deserializer deserializer) {
       var $config = $type.has_tag("dessert:des:struct") ??? $type.get_tag("dessert:des:struct") : (DStructConfig) {};
       List{String} names;
       names.tinit();
+      defer names.free();
 
       deserializer.struct_start($type.name)!;
       while(deserializer.has_next_field()!) {
@@ -156,9 +158,15 @@ macro void? impl_deserialize(value, Deserializer deserializer) {
           next_key!;
           return;
         }
+        if (names.contains(next_key)) {
+          return DUPLICATED_KEY~;
+        }
 
         $foreach $member : $Typeof(value)::inner.members:
-          if (@des_field(deserializer, value, $member, next_key, names)!) continue;
+          if (@des_field(deserializer, value, $member, next_key, names)!) {
+            names.push($member.name);
+            continue;
+          }
         $endforeach
 
         $if $config.deny_unknown_fields:
@@ -174,37 +182,66 @@ macro void? impl_deserialize(value, Deserializer deserializer) {
 }
 
 
-macro bool? @des_field(deserializer, value, $member, next_key, #names) @local {
-  DFieldConfig $dessert = $member.has_tag("dessert:des") ??? $member.get_tag("dessert:des") : (DFieldConfig) {};
-  var $name = $dessert.rename.len > 0 ??? $dessert.rename : $member.name;
+macro bool? @des_field(deserializer, value, $member, next_key, List{String} names) @local {
+  DFieldConfig $config = $member.has_tag("dessert:des") ??? $member.get_tag("dessert:des") : (DFieldConfig) {};
+  var $name = $config.rename.len > 0 ??? $config.rename : $member.name;
   $if $member.type.name == @sprintf("%s.$anon", $Typeof(value)::inner.name):
     $foreach $m : $member.type.members:
-      if (@des_field(deserializer, &$member.get(*value), $m, next_key, #names)!) return true;
+      if (@des_field(deserializer, &$member.get(*value), $m, next_key, {})!) return true;
     $endforeach
   $endif
 
   if ($name == next_key) {
-    if (#names.contains(next_key)) {
-      return DUPLICATED_KEY~;
-    }
-    $if !$dessert.skip:
-      $if $member.type.name == @sprintf("%s.%s", $Typeof(value)::inner.name, $member.name)
-        ||| $member.type.name == @sprintf("%s.$anon", $Typeof(value)::inner.name):
-        impl_deserialize(&$member.get(*value), deserializer)!;
-      $else
-        $Typefrom($member.type)? next_value = deserialize{$member.type}(deserializer);
-        if (catch next_value) {
-          io::eprintfn("Error deserializing key: %s", next_key);
-          next_value!;
-          return false;
-        }
-        $member.set(*value, next_value);
-      $endif
-    $endif
+    $if !$config.skip:
+      $switch:
+        $case $member.type.name == @sprintf("%s.%s", $Typeof(value)::inner.name, $member.name):
+        $case $member.type.name == @sprintf("%s.$anon", $Typeof(value)::inner.name):
+          impl_deserialize(&$member.get(*value), deserializer)!;
 
-    #names.push($member.name);
+        $case $member.type.kind == UNION &&& !@is_inlined_union($member.type):
+          impl_deserialize(&$member.get(*value), deserializer)!;
+
+        $case $member.type.kind == UNION &&& @is_inlined_union($member.type):
+          $if $config.tagged_by.len == 0:
+            $error @sprintf("Inlined unions MUST have a 'tagged_by' value for deserialization (%s)", $member.name);
+          $endif
+          
+          if (!names.contains($config.tagged_by)) {
+            io::eprintfn("While deserializing '" +++ $Typeof(value)::inner.name +++ "', encountered inlined union field '%s' before tag key '%s'.", next_key, $config.tagged_by);
+            return INLINED_UNION_BEFORE_TAG~;
+          }
+
+          var tag_value = value.$eval($config.tagged_by);
+          var next_value = $member.get(*value);
+
+          var $the_switch = "switch ((sz) tag_value) {";
+          var $UType = $member.type;
+          $foreach $i, $m : $UType::members:
+            $the_switch +++= @sprintf("case %s:\n", $i);
+            $the_switch +++= @sprintf("@des_field(deserializer, &next_value, $UType::members[%s], $UType::members[%s].name, {})!;\n", $i, $i);
+          $endforeach
+
+          $the_switch +++= "}";
+          $expand($the_switch);
+
+          $member.set(*value, next_value);
+
+        $default:
+          $Typefrom($member.type)? next_value = deserialize{$member.type}(deserializer);
+          if (catch next_value) {
+            io::eprintfn("Error deserializing key: %s", next_key);
+            next_value!;
+            return false;
+          }
+
+          $member.set(*value, next_value);
+
+      $endswitch
+    $endif
     return true;
   }
 
   return false;
 }
+
+macro bool @is_inlined_union($UType) => @get_tag($UType, "dessert:des:union", (DUnionConfig) {}).inlined;

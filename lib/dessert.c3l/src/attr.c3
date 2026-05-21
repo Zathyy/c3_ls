@@ -76,11 +76,7 @@ attrdef @DStructSer(DStructConfig config) = @tag("dessert:ser:struct", config);
 attrdef @DStructDes(DStructConfig config) = @tag("dessert:des:struct", config);
 
 struct DUnionConfig {
-  <*
-    Specify another field to be used as the tag for this field type.
-  *>
-  String tagged_by;
-  // bool flatten;
+  bool inlined;
 }
 attrdef @DUnion(DUnionConfig config) = @tag("dessert:ser:union", config), @tag("dessert:des:union", config);
 attrdef @DUnionSer(DUnionConfig config) = @tag("dessert:ser:union", config);

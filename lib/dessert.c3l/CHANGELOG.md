@@ -2,6 +2,10 @@
 
 All notable changes to dessert are documented here.
 
+## 2026-05-21
+
+- Added inlined tag union support for both serialization and deserialization
+
 ## 2026-05-20
 
 - Added tag union support for serialization and deserialization
