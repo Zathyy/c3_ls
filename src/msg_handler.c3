@@ -34,7 +34,7 @@ struct LspNotification
 {
 	String jsonrpc;
 	MessageKind method;
-  MessageParams params @DField({ .tagged_by = "method" });
+  	MessageParams params @DField({ .tagged_by = "method" });
 	// Maybe{Object*} params;
 }
 
@@ -66,60 +66,59 @@ struct LspAction
 *>
 fn LspAction? handle_message(LspMessage message, Allocator allocator)
 {
-  log::info("handling message `%s`", message.method);
+  	log::info("handling message `%s`", message.method);
 
-  switch (message.method)
-  {
-    case INITIALIZE:
-      LspInitializeRequest initialize = initialize::parse_message(message)!;
-      log::debug("responding to `initialize` message");
-      String initialize_response = initialize.response(tmem);
-      io_handler::write(initialize_response);
-      log::debug("responded to `initialize` message");
-      return { NOTHING, LSP_ACTION_DATA_EMPTY };
+	switch (message.method)
+	{
+	case INITIALIZE:
+		LspInitializeRequest initialize = initialize::parse_message(message)!;
+		log::debug("responding to `initialize` message");
+		String initialize_response = initialize.response(tmem);
+		io_handler::write(initialize_response);
+		log::debug("responded to `initialize` message");
+		return { NOTHING, LSP_ACTION_DATA_EMPTY };
     case INITIALIZED:
-      return { NOTHING, LSP_ACTION_DATA_EMPTY };
+		return { NOTHING, LSP_ACTION_DATA_EMPTY };
     case DID_OPEN:
-      LspDidOpenTextDocumentNotification text_opened =
-        text_opened::parse_message(message)!;
-      log::debug("text opened: { %s, uri: \"%s\", languageId: \"%s\", version: %s }",
-          text_opened.notif,
-          text_opened.params.uri,
-          text_opened.params.languageId,
-          text_opened.params.version,
-          );
-      return { OPEN_FILE, alloc::new(allocator, LspActionDataOpenFile,
-          {
-          .uri = text_opened.params.uri.copy(allocator),
-          .text = text_opened.params.text.copy(allocator),
-          })
-      };
+		LspDidOpenTextDocumentNotification text_opened =
+			text_opened::parse_message(message)!;
+		log::debug("text opened: { %s, uri: \"%s\", languageId: \"%s\", version: %s }",
+			text_opened.notif,
+			text_opened.params.uri,
+			text_opened.params.languageId,
+			text_opened.params.version,
+			);
+		return { OPEN_FILE, alloc::new(allocator, LspActionDataOpenFile,
+			{
+			.uri = text_opened.params.uri.copy(allocator),
+			.text = text_opened.params.text.copy(allocator),
+			})
+		};
     case DID_CLOSE:
-      LspDidCloseTextDocumentNotification text_closed =
-        text_closed::parse_message(message)!;
-      log::debug("text closed: { %s, uri: \"%s\", languageId: \"%s\", version: %s }",
-          text_closed.notif,
-          text_closed.params.uri,
-          );
-      return { CLOSE_FILE, alloc::new(allocator, LspActionDataCloseFile,
-          {
-          .uri = text_closed.params.uri.copy(allocator),
-          })
-      };
+		LspDidCloseTextDocumentNotification text_closed =
+			text_closed::parse_message(message)!;
+		log::debug("text closed: { %s, uri: \"%s\", languageId: \"%s\", version: %s }",
+			text_closed.notif,
+			text_closed.params.uri,
+			);
+		return { CLOSE_FILE, alloc::new(allocator, LspActionDataCloseFile,
+			{
+			.uri = text_closed.params.uri.copy(allocator),
+			})
+		};
     case SHUTDOWN:
-      LspShutdownRequest shutdown = shutdown::parse_message(message)!;
-      log::debug("responding to `shutdown` message");
-      String shutdown_response = shutdown.response(tmem);
-      io_handler::write(shutdown_response);
-      log::debug("responded to `shutdown` message");
-      return { NOTHING, LSP_ACTION_DATA_EMPTY };
+		LspShutdownRequest shutdown = shutdown::parse_message(message)!;
+		log::debug("responding to `shutdown` message");
+		String shutdown_response = shutdown.response(tmem);
+		io_handler::write(shutdown_response);
+		log::debug("responded to `shutdown` message");
+		return { NOTHING, LSP_ACTION_DATA_EMPTY };
     case EXIT:
-      return { SHUTDOWN, LSP_ACTION_DATA_EMPTY };
-
+		return { SHUTDOWN, LSP_ACTION_DATA_EMPTY };
     default:
-  }
-  log::info("unhandled case");
-  return { UNHANDLED_CASE, LSP_ACTION_DATA_EMPTY };
+	}
+	log::info("unhandled case");
+	return { UNHANDLED_CASE, LSP_ACTION_DATA_EMPTY };
 }
 
 <*
