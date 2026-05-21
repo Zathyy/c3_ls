@@ -11,8 +11,7 @@ import std::os::win32;
 
 String prev_buffer;
 
-// TODO: move this
-// https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/setmode?view=msvc-170
+// will be in std lib soon
 extern fn int _setmode(int fd, int mode) @if(env::WIN32);
 extern fn Win32_BOOL setConsoleMode(Win32_HANDLE handle, Win32_DWORD mode) @cname("SetConsoleMode") @if(env::WIN32);
 extern fn Win32_BOOL getConsoleMode(Win32_HANDLE handle, Win32_DWORD* mode) @cname("GetConsoleMode") @if(env::WIN32);
@@ -56,7 +55,11 @@ fn void init()
 fn bool has_input()
 {
     $if env::WIN32:
-        Win32_HANDLE hStdin = getStdHandle(STD_INPUT_HANDLE);
+        static Win32_HANDLE hStdin = null;
+		if (!hStdin)
+		{
+			hStdin = getStdHandle(STD_INPUT_HANDLE);
+		}
         Win32_DWORD count = 0;
         getNumberOfConsoleInputEvents(hStdin, &count);
         return count > 0;
