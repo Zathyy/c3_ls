@@ -1,4 +1,4 @@
-module example @if($feature(EXE));
+module example @if($feature(DESSERT_EXAMPLE));
 import std;
 import dessert;
 import json;
@@ -73,8 +73,15 @@ struct Person {
 
 union MyUnion @DUnion({ .inlined = true }) {
   int first;
-  double second;
+  struct second {
+    int x;
+  }
   String third;
+}
+
+$expand(derive(Foo::name, dessert));
+struct Foo {
+  int bar;
 }
 
 $expand(derive(Request::name, dessert));
@@ -84,7 +91,7 @@ struct Request {
 }
 
 fn void main() {
-  Request req = { .kind = 1, .p = {.second = 2.2} };
+  Request req = { .kind = 1, .p = {.second = { .x = 2 }} };
   String s = ser::serialize(&&json::string_serializer(), req)!!;
   io::printn(s);
 
