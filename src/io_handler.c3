@@ -10,6 +10,9 @@ import libc;
 
 String prev_buffer;
 
+// https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/setmode?view=msvc-170
+extern fn int _setmode(int fd, int mode) @if(env::WIN32);
+
 <*
 	Set up stdin for continuous reading
 *>
@@ -20,6 +23,11 @@ fn void init()
 	{
 		log::error("Failed to set stdin non blocking: %s", err);
 	}
+
+	$if env::WIN32:
+		_setmode(0, 0x8000); // stdin -> O_BINARY
+		_setmode(1, 0x8000); // stdout -> O_BINARY
+	$endif
 }
 
 <*
