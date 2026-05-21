@@ -5,6 +5,7 @@ import std::collections::map;
 
 import dessert;
 import derive;
+import c3_parser;
 
 $expand(derive(LspFile::name, dessert));
 struct LspFile
@@ -38,8 +39,16 @@ fn void LspFile.free(&self)
 
 struct LspProject
 {
-	// access files using URI
-	inline HashMap{String, LspFile} files;
+	HashMap{String, LspFile} files;
+	Workspace workspace;
+	Allocator allocator;
+}
+
+fn void LspProject.init(&self, Allocator allocator)
+{
+	self.allocator = allocator;
+	self.files.init(allocator);
+	self.workspace.init(allocator);
 }
 
 fn void LspProject.free(&self)
@@ -56,6 +65,11 @@ fn void LspProject.open_file(&self, String uri, String text)
 	log::debug("opening file %s", uri);
 	assert(!self.files.has_key(uri));
 	self.files[uri] = ((LspFile){}).new(self.allocator, text);
+
+	if (catch err = parser::parse_file(&self.workspace, uri))
+	{	
+		log::error("Failed to parse %s", uri);
+	}
 }
 
 fn void LspProject.close_file(&self, String uri)

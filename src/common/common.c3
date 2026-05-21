@@ -121,11 +121,8 @@ $expand(derive(DiagnosticSeverity::name, dessert));
 constdef DiagnosticSeverity : int
 {
 	ERROR = 1,
-	
 	WARNING = 2,
-
 	INFORMATION = 3,
-
 	HINT = 4,
 }
 
@@ -133,7 +130,6 @@ $expand(derive(DiagnosticTag::name, dessert));
 constdef DiagnosticTag : int 
 {
 	UNNECESSARY = 1,
-
 	DEPRECATED = 2,
 }
 
@@ -142,10 +138,7 @@ struct Diagnostic
 {
 	LspRange range;
 	DiagnosticSeverity severity;
-
 	String source;
-
 	String message;
-
 	DiagnosticTag[] tags;
 }
