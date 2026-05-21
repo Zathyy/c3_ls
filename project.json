@@ -3,7 +3,7 @@
   "warnings": ["no-unused"],
   "dependency-search-paths": ["lib"],
   "dependencies": ["dessert"],
-  "authors": ["m0tholith"],
+  "authors": ["m0tholith", "Zathy", "ecoral360"],
   "version": "0.1.0",
   "sources": ["src/**"],
   "test-sources": ["test/**"],
