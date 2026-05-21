@@ -34,7 +34,7 @@ enum MessageKind : char (String name) @DEnum({ .as = FIELD, .field = "name" })
 	EXIT         { "exit" },
 }
 
-union MessageParams
+union MessageParams @DUnion({ .inlined = true })
 {
 	Object* unknown;
 	struct initialize @DStruct({ .rename_all = CAMEL_CASE })
