@@ -25,14 +25,14 @@ struct LspInitializeRequest
 $expand(derive(LspInitializeParams::name, dessert));
 struct LspInitializeParams @DStruct({ .rename_all = CAMEL_CASE })
 {
-  int process_id;
-  Maybe{LspInitializeClientInfo} client_info;
+	int process_id;
+	Maybe{LspInitializeClientInfo} client_info;
 }
 
 $expand(derive(LspInitializeClientInfo::name, dessert));
 struct LspInitializeClientInfo @DStruct({ .rename_all = CAMEL_CASE })
 {
-  int client_info;
+	int client_info;
 }
 
 fn LspInitializeRequest? parse_message(LspMessage message)
@@ -41,7 +41,7 @@ fn LspInitializeRequest? parse_message(LspMessage message)
 		.request = msg_handler::get_request_struct(message)!,
 	};
 
-  log::info(ser::serialize(&&json::string_serializer(), &self)!!);
+  	log::info(ser::serialize(&&json::string_serializer(), &self)!!);
 
 	return self;
 }
@@ -67,6 +67,7 @@ struct LspServerCapabilities
 {
 	int textDocumentSync;
 }
+
 fn String LspInitializeRequest.response(&self, Allocator allocator)
 {
 	LspInitializeResponse response = {
@@ -76,7 +77,7 @@ fn String LspInitializeRequest.response(&self, Allocator allocator)
 			.capabilities = { .textDocumentSync = 1 },
 			.serverInfo = {
 				.name = "c3_ls",
-				.version = "0.1.0",
+				.version = env::PROJECT_VERSION,
 			},
 		},
 	};

@@ -143,8 +143,7 @@ fn LspNotification? get_notification_struct(LspMessage message)
 	return {
 		.jsonrpc = message.rpc,
 		.method = message.method,
-		.params = message.params, // maybe::value{Object*}(message.contents.get("params"))
-// 			?? maybe::EMPTY{Object*},
+		.params = message.params,
 	};
 }
 

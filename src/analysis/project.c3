@@ -53,6 +53,7 @@ fn void LspProject.init(&self, Allocator allocator)
 
 fn void LspProject.free(&self)
 {
+	self.workspace.free();
 	self.files.@each(; String uri, LspFile file)
 	{
 		file.free();
