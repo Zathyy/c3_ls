@@ -45,22 +45,7 @@ enum MessageKind : char (String name) @DEnum({ .as = FIELD, .field = "name" })
 union MessageParams @DUnion({ .inlined = true })
 {
 	Object* unknown;
-	struct initialize @DStruct({ .rename_all = CAMEL_CASE })
-	{
-		int process_id;
-		struct client_info
-		{
-			String name;
-			String version;
-		}
-
-		String locale;
-		DocumentUri root_uri;
-
-		Maybe{TraceKind} trace;
-
-		WorkspaceFolder[] workspace_folders;
-	}
+	InitializeParams initialize;
 
 	struct did_open
 	{
@@ -77,6 +62,24 @@ union MessageParams @DUnion({ .inlined = true })
 		DocumentUri document @DField({ .rename = "textDocument/hover" });
 		LspPosition position;
 	}
+}
+
+$expand(derive(InitializeParams::name, dessert));
+struct InitializeParams @DStruct({ .rename_all = CAMEL_CASE })
+{
+	int process_id;
+	struct client_info
+	{
+		String name;
+		String version;
+	}
+
+	String locale;
+	Maybe{DocumentUri} root_uri;
+
+	Maybe{TraceKind} trace;
+
+	WorkspaceFolder[] workspace_folders;
 }
 
 $expand(derive(WorkspaceFolder::name, dessert));

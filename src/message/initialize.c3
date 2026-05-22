@@ -41,6 +41,9 @@ fn LspInitializeRequest? parse_message(LspMessage message)
 		.request = msg_handler::get_request_struct(message)!,
 	};
 
+	log::info(string::from_struct(tmem, message.params.initialize));
+	log::info(ser::serialize(&&json::string_serializer(), message.params.initialize)!!);
+
   	log::info(ser::serialize(&&json::string_serializer(), &self)!!);
 
 	return self;

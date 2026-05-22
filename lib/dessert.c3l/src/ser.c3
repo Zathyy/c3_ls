@@ -5,9 +5,6 @@ import std::io;
 import std::core::types;
 import std::collections::maybe;
 
-const char[256] TO_UPPER @private = { ['a'..'z'] = 'a' - 'A' };
-macro char @to_upper(char $c) => $c - TO_UPPER[$c];
-
 interface Serializer {
   fn void? struct_start(String name);
   fn void? serialize_field_start(String name, FieldAttrs fmt);
@@ -110,39 +107,12 @@ macro impl_serialize(s, Serializer serializer) {
   $endswitch
 }
 
-
-macro @rename(DFieldConfig $config, String $name, DStructConfig $struct_config) @local @const {
-  $if $config.rename.len > 0:
-    return $config.rename;
-  $else
-    $switch $struct_config.rename_all:
-      $case VERBATIM:
-        return $name;
-
-      $case CAMEL_CASE:
-        String $new_name = "";
-        $for int $i = 0; $i < $name.len; $i++:
-          $if $name[$i] == '_':
-            $new_name +++= @to_upper($name[$i+1]);
-            $i++;
-          $else
-            $new_name +++= $name[$i];
-          $endif
-        $endfor
-        return $new_name;
-
-      $default:
-        $error @sprintf("CaseConvention %s not supported for now.");
-    $endswitch
-  $endif
-}
-
 macro @serialize_field(serializer, DFieldConfig $config, s, $member, DStructConfig $struct_config) @local {
   bool $is_flatten = $config.flatten ||| $member.name.len == 0;
 
   $if !$is_flatten:
     serializer.serialize_field_start(
-      @rename($config, $member.name, $struct_config),
+      utils::@rename($config, $member.name, $struct_config),
       $config.fmt,
     )!;
   $endif
@@ -171,7 +141,7 @@ macro @serialize_field(serializer, DFieldConfig $config, s, $member, DStructConf
 
   $if !$is_flatten:
     serializer.serialize_field_end(
-      @rename($config, $member.name, $struct_config),
+      utils::@rename($config, $member.name, $struct_config),
       $config.fmt,
     )!;
   $endif
