@@ -55,7 +55,7 @@ $expand(derive(LspHoverResponse::name, dessert));
 struct LspHoverResponse
 {	
 	HoverContentKind content_kind @DField({ .skip = true });
-   	MarkupContentUnion contents @DField({ .tagged_by = "method" });
+   	MarkupContentUnion contents @DField({ .tagged_by = "content_kind" });
 	<*
 		An optional range is a range inside a text document
 	 	that is used to visualize a hover, e.g. by changing the background color.
