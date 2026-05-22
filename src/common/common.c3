@@ -29,7 +29,15 @@ enum MessageKind : char (String name) @DEnum({ .as = FIELD, .field = "name" })
 	DID_CHANGE   { "textDocument/didChange" },
 	DID_CLOSE    { "textDocument/didClose" },
 	DID_SAVE     { "textDocument/didSave" },
+	FULL         { "textDocument/semanticTokens/full" },
+	SYMBOL       { "textDocument/documentSymbol" },
 	HOVER        { "textDocument/hover" },
+	COMPLETION   { "textDocument/completion" },
+	DEFINITION   { "textDocument/definition" },
+	DECLERATION  { "textDocument/declaration" },
+	REFERENCES   { "textDocument/references" },
+	HELP         { "textDocument/signatureHelp" },
+	RENAME       { "textDocument/rename" },
 	SHUTDOWN     { "shutdown" },
 	EXIT         { "exit" },
 }
@@ -141,4 +149,25 @@ struct Diagnostic
 	String source;
 	String message;
 	DiagnosticTag[] tags;
+}
+
+$expand(derive(MarkupKind::name, dessert));
+enum MarkupKind : char (String name) @DEnum({ .as = FIELD, .field = "name" })
+{
+	PLAIN_TEXT { "plaintext" },
+	MARKDOWN   { "markdown" }
+}
+
+$expand(derive(MarkedString::name, dessert));
+struct MarkedString 
+{
+	String language;
+	String value;
+}
+
+$expand(derive(MarkupContent::name, dessert));
+struct MarkupContent
+{
+	MarkupKind kind;
+	String value;
 }
