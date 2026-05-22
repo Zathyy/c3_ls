@@ -13,18 +13,17 @@ String prev_buffer;
 
 // will be in std lib soon
 extern fn int _setmode(int fd, int mode) @if(env::WIN32);
-extern fn Win32_BOOL setConsoleMode(Win32_HANDLE handle, Win32_DWORD mode) @cname("SetConsoleMode") @if(env::WIN32);
-extern fn Win32_BOOL getConsoleMode(Win32_HANDLE handle, Win32_DWORD* mode) @cname("GetConsoleMode") @if(env::WIN32);
 extern fn Win32_HANDLE getStdHandle(Win32_DWORD handle) @cname("GetStdHandle") @if(env::WIN32);
-extern fn Win32_BOOL getNumberOfConsoleInputEvents(Win32_HANDLE hHandle, Win32_DWORD* lpCount) @cname("GetNumberOfConsoleInputEvents") @if(env::WIN32);
-
-const Win32_DWORD ENABLE_LINE_INPUT @if(env::WIN32) = 0x0002;
-const Win32_DWORD ENABLE_ECHO_INPUT @if(env::WIN32) = 0x0004;
-
-// Standard Handles (32-bit unsigned bit patterns)
 const Win32_DWORD STD_INPUT_HANDLE @if(env::WIN32)  = 0xFFFFFFF6; // ((DWORD)-10)
-const Win32_DWORD STD_OUTPUT_HANDLE @if(env::WIN32) = 0xFFFFFFF5; // ((DWORD)-11)
-const Win32_DWORD STD_ERROR_HANDLE @if(env::WIN32)  = 0xFFFFFFF4; // ((DWORD)-12)
+
+extern fn Win32_BOOL peekNamedPipe(
+	Win32_HANDLE   hNamedPipe,
+	Win32_LPVOID  lpBuffer,
+	Win32_DWORD    nBufferSize,
+	Win32_LPDWORD lpBytesRead = null,
+	Win32_LPDWORD lpTotalBytesAvail = null,
+	Win32_LPDWORD lpBytesLeftThisMessage = null
+) @cname("PeekNamedPipe") @if(env::WIN32);
 
 <*
 	Set up stdin for continuous reading
@@ -34,15 +33,6 @@ fn void init()
 	$if env::WIN32:
 		_setmode(0, 0x8000); // stdin -> O_BINARY
 		_setmode(1, 0x8000); // stdout -> O_BINARY
-
-		Win32_HANDLE stdin = getStdHandle(STD_INPUT_HANDLE);
-		Win32_DWORD mode;
-
-		if (getConsoleMode(stdin, &mode))
-        {
-			mode &= ~(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT);         	
-			setConsoleMode(stdin, mode);
-        }	
 	$else
 		NativeSocket socket = ((NativeSocket)libc::STDIN_FD);
 		if (catch err = socket.set_non_blocking(true))
@@ -50,22 +40,6 @@ fn void init()
 			log::error("Failed to set stdin non blocking: %s", err);
 		}
 	$endif
-}
-
-fn bool has_input()
-{
-    $if env::WIN32:
-        static Win32_HANDLE hStdin = null;
-		if (!hStdin)
-		{
-			hStdin = getStdHandle(STD_INPUT_HANDLE);
-		}
-        Win32_DWORD count = 0;
-        getNumberOfConsoleInputEvents(hStdin, &count);
-        return count > 0;
-    $else
-        return true;
-    $endif
 }
 
 <*
@@ -81,6 +55,21 @@ fn void quit()
 
 faultdef
 	NO_NEW_DATA;
+
+fn bool has_input()
+{
+	$if env::WIN32:
+		static Win32_HANDLE hStdin = null;
+		if (!hStdin) hStdin = getStdHandle(STD_INPUT_HANDLE);
+
+		Win32_DWORD avail_bytes;
+		if (peekNamedPipe(hStdin, null, 0, null, &avail_bytes, null))
+		{
+			return avail_bytes > 0;
+		}
+		return false;
+	$endif
+}
 
 <*
 	Reads LSP message from stdin
@@ -101,7 +90,9 @@ fn LspMessage? read(Allocator allocator, String message = {}) => @pool()
 	}
 	else
 	{
+		$if env::WIN32:
 		if (!has_input()) return NO_NEW_DATA~;
+		$endif
 		read_buffer = load_stdin(tmem);
 		if (read_buffer.len == 0) return NO_NEW_DATA~;
 		log::verbose("reading from stdin");
@@ -162,26 +153,50 @@ fn void write(String message) @inline
 }
 
 const STDIN_ALLOC_LEN @local = 1024;
+
 fn char[] load_stdin(Allocator allocator) @local
 {
-	sz len;
-	char[] result = alloc::new_array(allocator, char, 1)[:0];
-	while (true)
-	{
-		char[] tmp_read = alloc::new_array(tmem, char, STDIN_ALLOC_LEN);
+    InStream stream = io::stdin();
+    
+    char[] result = alloc::new_array(allocator, char, 0);
+    char[STDIN_ALLOC_LEN] tmp_read;
+    while (true)
+    {
+		sz? bytes_read;
+		$if env::WIN32:
+			static Win32_HANDLE hStdin = null;
+            if (!hStdin) hStdin = getStdHandle(STD_INPUT_HANDLE);
+
+            Win32_DWORD dw_bytes_read = 0;
+            if (!win32::readFile(hStdin, &tmp_read, STDIN_ALLOC_LEN, &dw_bytes_read, null))
+            {
+                break;
+            }
+            bytes_read = (long)dw_bytes_read;
+		$else
+			bytes_read = stream.read(&tmp_read);
+		$endif
+
+		if (catch err = bytes_read)
 		{
-			if (try tmp_len = io::stdin().read(tmp_read) && tmp_len > 0)
-			{
-				len = tmp_len;
-			}
-			else
-			{
-				break;
-			}
+			break;
 		}
-		char[] concatenated = array::concat(allocator, result, tmp_read[:len]);
-		alloc::free(allocator, result);
-		result = concatenated;
-	}
-	return result;
+
+        if (bytes_read <= 0)
+        {
+            break;
+        }
+
+        // Concatenate only the slice of valid bytes read during this iteration
+        char[] concatenated = array::concat(allocator, result, tmp_read[:bytes_read]);
+        alloc::free(allocator, result);
+        result = concatenated;
+
+        // If we read less than the buffer capacity, the stream is fully empty for now
+        if (bytes_read < STDIN_ALLOC_LEN)
+        {
+            break;
+        }
+    }
+    return result;
 }
