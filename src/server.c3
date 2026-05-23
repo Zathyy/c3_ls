@@ -67,6 +67,9 @@ fn void dispatch(LspMessage* message)
 		case DID_CLOSE:
 			project.close_file(message.params.did_close.document);
 			break;
+		case COMPLETION:
+			completion::response(tmem, message);
+			break;
 		case SHUTDOWN:
 			shutdown::response(tmem, message);
 			break;
