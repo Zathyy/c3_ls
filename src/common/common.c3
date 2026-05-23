@@ -180,3 +180,35 @@ struct MarkupContent
 	MarkupKind kind;
 	String value;
 }
+
+$expand(derive(TextDocumentSyncKind::name, dessert));
+constdef TextDocumentSyncKind
+{
+	<*
+		Documents should not be synced at all.
+	*>
+	NONE = 0,
+	<*
+		Documents are synced by always sending the full content
+		of the document.
+	*>
+	FULL = 1,
+	<*
+		Documents are synced by sending the full content on open.
+		After that only incremental updates to the document are
+		sent.
+	*>
+	INCREMENTAL = 2,
+}
+
+$expand(derive(TextDocumentSyncOptions::name, dessert));
+struct TextDocumentSyncOptions
+{
+	<*
+		Open and close notifications are sent to the server. If omitted open
+		close notifications should not be sent.
+	*>
+	bool open_close @DField({ .rename = "openClose" });
+
+	TextDocumentSyncKind change;
+}
