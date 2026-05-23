@@ -1,6 +1,7 @@
 module lsp::msg_handler::initialize;
 import lsp::msg_handler @norecurse;
 import lsp::translator;
+import lsp::io_handler;
 
 import std::io;
 import std::collections::object;
@@ -31,7 +32,7 @@ struct LspServerCapabilities
 	int textDocumentSync;
 }
 
-fn String response(Allocator allocator, LspMessage* message)
+fn void response(Allocator allocator, LspMessage* message)
 {
 	LspInitializeResponse response = {
 		.jsonrpc = message.rpc,
@@ -47,5 +48,5 @@ fn String response(Allocator allocator, LspMessage* message)
 	String response_json = translator::encode(response, allocator);
 
 	log::debug("initialize response: %s", response_json);
-	return response_json;
+	io_handler::write(response_json);
 }

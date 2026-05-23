@@ -10,32 +10,7 @@ import std::collections::maybe;
 
 import dessert;
 import derive;
-
-$expand(derive(LspHoverRequest::name, dessert));
-struct LspHoverRequest
-{
-	inline LspRequest request;
-	LspHoverParams params;
-}
-
-$expand(derive(LspHoverParams::name, dessert));
-struct LspHoverParams
-{
-	DocumentUri document @DField({ .rename = "textDocument" });
-	<* The position inside the text document. *>
-	LspPosition position;
-} 
-
-fn LspHoverRequest? parse_message(LspMessage message)
-{
-	LspHoverRequest self = {
-		.request = msg_handler::get_request_struct(message)!,
-	};
-
-  	log::info(ser::serialize(&&json::string_serializer(), &self)!!);
-
-	return self;
-}
+import lsp::io_handler;
 
 enum HoverContentKind
 {
@@ -70,7 +45,7 @@ struct LspServerCapabilities
 	MarkupKind[] content_format @DField({ .rename = "contentFormat" });
 }
 
-fn String LspHoverRequest.response(&self, Allocator allocator)
+fn void response(Allocator allocator, LspMessage* message)
 {
 	LspHoverResponse response = {
 		.content_kind = MARKED_STRING,
@@ -83,5 +58,5 @@ fn String LspHoverRequest.response(&self, Allocator allocator)
 	String response_json = translator::encode(response, allocator);
 
 	log::debug("Hover response: %s", response_json);
-	return response_json;
+	io_handler::write(response_json);
 }

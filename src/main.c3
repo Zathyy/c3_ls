@@ -35,13 +35,13 @@ fn int main(String[] args)
 		switch (data.method)
 		{
 			case INITIALIZE:
-                io_handler::write(initialize::response(tmem, &data));
+                initialize::response(tmem, &data);
 			case DID_OPEN:
                 project.open_file(data.params.did_open.document);
             case DID_CLOSE:
                 project.close_file(data.params.did_close.document);
 			case SHUTDOWN:
-                io_handler::write(shutdown::response(tmem, &data));
+                shutdown::response(tmem, &data);
 			case EXIT:
 				log::info("Exit notification received. Terminating process.");
                 break LOOP;

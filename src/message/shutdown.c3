@@ -1,6 +1,7 @@
 module lsp::msg_handler::shutdown;
 import lsp::msg_handler @norecurse;
 import lsp::translator;
+import lsp::io_handler;
 
 import std::io;
 import std::collections::maybe;
@@ -16,7 +17,7 @@ struct LspShutdownResponse
 	int id;
 }
 
-fn String response(Allocator allocator, LspMessage* message) @inline
+fn void response(Allocator allocator, LspMessage* message) @inline
 {
 	LspShutdownResponse response = {
 		.jsonrpc = message.rpc,
@@ -25,5 +26,5 @@ fn String response(Allocator allocator, LspMessage* message) @inline
 
 	String response_json = translator::encode(response, allocator);
 	log::info("Confirmed shutdown request. Awaiting exit notification...");
-	return response_json;
+	io_handler::write(response_json);
 }
