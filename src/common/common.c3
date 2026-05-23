@@ -8,7 +8,7 @@ import derive;
 
 // https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification
 
-typedef Uri = inline String;
+typedef LspUri = inline String;
 typedef DocumentUri = inline String;
 
 $expand(derive(TraceKind::name, dessert));
@@ -85,7 +85,7 @@ struct InitializeParams @DStruct({ .rename_all = CAMEL_CASE })
 $expand(derive(WorkspaceFolder::name, dessert));
 struct WorkspaceFolder 
 {
-	Uri uri;
+	LspUri uri;
 	String name;
 }
 

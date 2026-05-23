@@ -9,46 +9,6 @@ import std::collections::maybe;
 import dessert;
 import derive;
 
-$expand(derive(LspInitializeRequest::name, dessert));
-struct LspInitializeRequest
-{
-	inline LspRequest request;
-
-	int processId;
-	struct client_info @DField({ .rename = "clientInfo" })
-	{
-		String name;
-		String version;
-	}
-}
-
-$expand(derive(LspInitializeParams::name, dessert));
-struct LspInitializeParams @DStruct({ .rename_all = CAMEL_CASE })
-{
-	int process_id;
-	Maybe{LspInitializeClientInfo} client_info;
-}
-
-$expand(derive(LspInitializeClientInfo::name, dessert));
-struct LspInitializeClientInfo @DStruct({ .rename_all = CAMEL_CASE })
-{
-	int client_info;
-}
-
-fn LspInitializeRequest? parse_message(LspMessage message)
-{
-	LspInitializeRequest self = {
-		.request = msg_handler::get_request_struct(message)!,
-	};
-
-	log::info(string::from_struct(tmem, message.params.initialize));
-	log::info(ser::serialize(&&json::string_serializer(), message.params.initialize)!!);
-
-  	log::info(ser::serialize(&&json::string_serializer(), &self)!!);
-
-	return self;
-}
-
 $expand(derive(LspInitializeResponse::name, dessert));
 struct LspInitializeResponse
 {
@@ -71,11 +31,11 @@ struct LspServerCapabilities
 	int textDocumentSync;
 }
 
-fn String LspInitializeRequest.response(&self, Allocator allocator)
+fn String response(Allocator allocator, LspMessage* message)
 {
 	LspInitializeResponse response = {
-		.jsonrpc = self.jsonrpc,
-		.id = self.id,
+		.jsonrpc = message.rpc,
+		.id = message.id.get() ?? -1,
 		.result = {
 			.capabilities = { .textDocumentSync = 1 },
 			.serverInfo = {

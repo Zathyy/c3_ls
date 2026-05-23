@@ -58,15 +58,15 @@ faultdef
 
 fn bool has_input() @if(env::WIN32)
 {
-  static Win32_HANDLE hStdin = null;
-  if (!hStdin) hStdin = getStdHandle(STD_INPUT_HANDLE);
+	static Win32_HANDLE hStdin = null;
+	if (!hStdin) hStdin = getStdHandle(STD_INPUT_HANDLE);
 
-  Win32_DWORD avail_bytes;
-  if (peekNamedPipe(hStdin, null, 0, null, &avail_bytes, null))
-  {
-    return avail_bytes > 0;
-  }
-  return false;
+	Win32_DWORD avail_bytes;
+	if (peekNamedPipe(hStdin, null, 0, null, &avail_bytes, null))
+	{
+		return avail_bytes > 0;
+	}
+	return false;
 }
 
 <*
@@ -89,7 +89,7 @@ fn LspMessage? read(Allocator allocator, String message = {}) => @pool()
 	else
 	{
 		$if env::WIN32:
-      if (!has_input()) return NO_NEW_DATA~;
+      	if (!has_input()) return NO_NEW_DATA~;
 		$endif
 		read_buffer = load_stdin(tmem);
 		if (read_buffer.len == 0) return NO_NEW_DATA~;
@@ -170,7 +170,7 @@ fn char[] load_stdin(Allocator allocator) @local
             {
                 break;
             }
-            bytes_read = (long)dw_bytes_read;
+            bytes_read = (sz)dw_bytes_read;
 		$else
 			bytes_read = stream.read(&tmp_read);
 		$endif

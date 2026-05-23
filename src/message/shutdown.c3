@@ -9,39 +9,21 @@ import std::collections::object;
 import dessert;
 import derive;
 
-$expand(derive(LspShutdownRequest::name, dessert));
-struct LspShutdownRequest
-{
-	inline LspRequest request;
-}
-
-fn LspShutdownRequest? parse_message(LspMessage message)
-{
-	LspShutdownRequest self = {
-		.request = msg_handler::get_request_struct(message)!,
-	};
-	
-	log::info("received shutdown request");
-	return self;
-}
-
 $expand(derive(LspShutdownResponse::name, dessert));
 struct LspShutdownResponse
 {
 	String jsonrpc;
 	int id;
-	// Maybe{void*} result;
 }
 
-fn String LspShutdownRequest.response(&self, Allocator allocator) @inline
+fn String response(Allocator allocator, LspMessage* message) @inline
 {
 	LspShutdownResponse response = {
-		.jsonrpc = self.jsonrpc,
-		.id = self.id,
-		// .result = {},
+		.jsonrpc = message.rpc,
+		.id = message.id.get() ?? -1,
 	};
 
 	String response_json = translator::encode(response, allocator);
-	log::debug("shutdown response: %s", response_json);
+	log::info("Confirmed shutdown request. Awaiting exit notification...");
 	return response_json;
 }

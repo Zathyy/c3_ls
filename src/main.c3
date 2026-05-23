@@ -35,18 +35,13 @@ fn int main(String[] args)
 		switch (data.method)
 		{
 			case INITIALIZE:
-				LspInitializeRequest init_req = initialize::parse_message(data)!!;
-                io_handler::write(init_req.response(tmem));
+                io_handler::write(initialize::response(tmem, &data));
 			case DID_OPEN:
-                LspDidOpenTextDocumentNotification text_opened = text_opened::parse_message(data)!!;
-                project.open_file(text_opened.params.uri, text_opened.params.text);
+                project.open_file(data.params.did_open.document);
             case DID_CLOSE:
-                LspDidCloseTextDocumentNotification text_closed = text_closed::parse_message(data)!!;
-                project.close_file(text_closed.params.uri);
+                project.close_file(data.params.did_close.document);
 			case SHUTDOWN:
-				LspShutdownRequest shutdown = shutdown::parse_message(data)!!;
-                io_handler::write(shutdown.response(tmem));
-                log::info("Confirmed shutdown request. Awaiting exit notification...");
+                io_handler::write(shutdown::response(tmem, &data));
 			case EXIT:
 				log::info("Exit notification received. Terminating process.");
                 break LOOP;
