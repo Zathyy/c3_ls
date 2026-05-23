@@ -70,7 +70,7 @@ struct IoDecodeResult
 	@return? INCOMPLETE_JSON
 	@return? INVALID_MESSAGE
 *>
-macro IoDecodeResult? decode(Allocator allocator, String message) => @pool()
+macro IoDecodeResult? decode(Allocator allocator, String message)
 {
 	const String HEADER_START = "Content-Length: ";
 	const String ESCAPE = "\r\n\r\n";

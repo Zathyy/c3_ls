@@ -78,7 +78,7 @@ fn bool has_input() @if(env::WIN32)
 	@return? translator::INCOMPLETE_JSON
 	@return? translator::INVALID_MESSAGE
 *>
-fn LspMessage? read(Allocator allocator, String message = {}) => @pool()
+fn LspMessage? read(Allocator allocator, String message = {})
 {
 	char[] read_buffer;
 	if (message != {})

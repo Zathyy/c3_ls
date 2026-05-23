@@ -2,7 +2,7 @@
   "langrev": "1",
   "warnings": ["no-unused"],
   "dependency-search-paths": ["lib"],
-  "dependencies": ["dessert", "c3_parser"],
+  "dependencies": ["dessert", "c3_parser", "seali"],
   "authors": ["m0tholith", "Zathy", "ecoral360"],
   "version": "0.1.0",
   "sources": ["src/**"],

@@ -26,7 +26,7 @@ union MarkupContentUnion @DUnion({ .inlined = true })
 	MarkupContent markup_content;
 }
 
-$expand(derive(LspHoverResponse::name, dessert));
+$expand(derive(LspHoverResponse::name, dessert::serialize));
 struct LspHoverResponse
 {	
 	HoverContentKind content_kind @DField({ .skip = true });
