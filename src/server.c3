@@ -12,7 +12,7 @@ import std::time;
 bool running @local;
 LspProject project;
 
-fn void start(String[] args)
+fn void start(CliArgs args)
 {
 	log::set_priority_all(LogPriority.VERBOSE);
 	log::info("STARTUP");
