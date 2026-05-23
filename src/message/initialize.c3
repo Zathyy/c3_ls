@@ -26,10 +26,14 @@ struct LspInitializeResponse
 	}
 }
 
+<*
+	https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#serverCapabilities
+*>
 $expand(derive(LspServerCapabilities::name, dessert));
 struct LspServerCapabilities
 {
-	int textDocumentSync;
+	TextDocumentSyncOptions text_document_sync @DField({ .rename = "textDocumentSync" });
+
 }
 
 fn void response(Allocator allocator, LspMessage* message)
@@ -38,7 +42,10 @@ fn void response(Allocator allocator, LspMessage* message)
 		.jsonrpc = message.rpc,
 		.id = message.id.get() ?? -1,
 		.result = {
-			.capabilities = { .textDocumentSync = 1 },
+			.capabilities = { .text_document_sync = {
+				.open_close = true,
+				.change = INCREMENTAL,
+			}},
 			.serverInfo = {
 				.name = "c3_ls",
 				.version = env::PROJECT_VERSION,
