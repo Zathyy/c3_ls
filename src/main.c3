@@ -36,12 +36,16 @@ fn int main(String[] args)
 		{
 			case INITIALIZE:
                 initialize::response(tmem, &data);
+				break;
 			case DID_OPEN:
                 project.open_file(data.params.did_open.document);
+				break;
             case DID_CLOSE:
                 project.close_file(data.params.did_close.document);
+				break;
 			case SHUTDOWN:
                 shutdown::response(tmem, &data);
+				break;
 			case EXIT:
 				log::info("Exit notification received. Terminating process.");
                 break LOOP;
