@@ -46,22 +46,9 @@ union MessageParams @DUnion({ .inlined = true })
 {
 	Object* unknown;
 	InitializeParams initialize;
-
-	struct did_open
-	{
-		TextDocumentItem document @DField({ .rename = "textDocument" });
-	}
-
-	struct did_close
-	{
-		DocumentUri document @DField({ .rename = "textDocument" });
-	}
-
-	struct hover 
-	{
-		DocumentUri document @DField({ .rename = "textDocument/hover" });
-		LspPosition position;
-	}
+	DidOpenParams did_open;
+	DidCloseParams did_close;
+	HoverParams hover;
 }
 
 $expand(derive(InitializeParams::name, dessert));
@@ -80,6 +67,25 @@ struct InitializeParams @DStruct({ .rename_all = CAMEL_CASE })
 	Maybe{TraceKind} trace;
 
 	WorkspaceFolder[] workspace_folders;
+}
+
+$expand(derive(DidOpenParams::name, dessert));
+struct DidOpenParams
+{
+	TextDocumentItem document @DField({ .rename = "textDocument" });
+}
+
+$expand(derive(DidCloseParams::name, dessert));
+struct DidCloseParams
+{
+	DocumentUri document @DField({ .rename = "textDocument" });
+}
+
+$expand(derive(HoverParams::name, dessert));
+struct HoverParams
+{
+	DocumentUri document @DField({ .rename = "textDocument/hover" });
+	LspPosition position;
 }
 
 $expand(derive(WorkspaceFolder::name, dessert));

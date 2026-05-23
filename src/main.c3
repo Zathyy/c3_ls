@@ -24,6 +24,7 @@ fn int main(String[] args)
 		{
 			if (err == io_handler::NO_NEW_DATA)
 			{
+				//TODO: How long?
 				thread::sleep(time::ms(1));
 				continue;
 			}
