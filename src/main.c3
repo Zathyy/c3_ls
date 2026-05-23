@@ -38,6 +38,9 @@ fn int main(String[] args)
 			case INITIALIZE:
                 initialize::response(tmem, &data);
 				break;
+			case INITIALIZED:
+				log::info("received Initialized");
+				break;
 			case DID_OPEN:
                 project.open_file(data.params.did_open.document);
 				break;
