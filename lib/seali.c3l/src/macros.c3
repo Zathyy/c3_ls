@@ -4,17 +4,6 @@ import std::io;
 import std::collections::list;
 import std::collections::maybe;
 
-struct CommandConfig {
-  String name;
-  String version;
-  String about;
-  String long_about;
-  bool help_on_empty;
-  CaseConvention rename_all;
-}
-
-attrdef @Command(CommandConfig config) = @tag("seali:command", config);
-
 enum CaseConvention : (String example) {
   KEBAB_CASE { "kebab-case" },
   CAMEL_CASE { "camelCase" },
@@ -26,7 +15,16 @@ enum CaseConvention : (String example) {
   VERBATIM { "verbatim" },
 }
 
-attrdef @RenameAll(CaseConvention convention) = @tag("seali:rename_all", convention);
+struct CommandConfig {
+  String name;
+  String version;
+  String about;
+  String long_about;
+  bool help_on_empty;
+  CaseConvention rename_all;
+}
+
+attrdef @Command(CommandConfig config) = @tag("seali:command", config);
 
 // ------------------------------------
 
@@ -67,7 +65,7 @@ macro parse($Cmd, String[] _args) {
       $if $config.default_value.len > 0:
         args_with_values.push($member.name);
         do {
-          var val = @str_to_value($member.type, $config.default_value);
+          var val = ($Typefrom($member.type)) utils::@expand_val($config.default_value);
           $if $defined(val!):
             if (catch val) {
               val!;
@@ -144,8 +142,8 @@ macro parse($Cmd, String[] _args) {
 macro ArgConfig @setup_config($cmd_config, $arg) {
   ArgConfig $current_config = $arg.has_tag("seali:arg") ??? $arg.get_tag("seali:arg") : {};
 
-  char $shortn;
-  String $longn;
+  char $shortn = $current_config.shortn;
+  String $longn = $current_config.longn;
 
   $if $current_config.autoshort:
     $shortn = $arg.name[0];
@@ -184,27 +182,6 @@ macro String @rename(CaseConvention $convention, String $name) @local @const {
 
     $default:
       $error @sprintf("Not supported yet: %s", $convention);
-  $endswitch
-}
-
-macro @str_to_value($Type, #value) {
-  $if @is_maybe_type($Type):
-    $Type $t;
-    return maybe::value{$Typeof($t.value)}(@str_to_value($Typeof($t.value), #value));
-  $endif
-
-  $switch:
-    $case $Type == int:
-      return #value.to_int();
-    $case $Type == uint:
-      return #value.to_uint();
-    $case $Type == String:
-      return #value;
-    $case $Type == bool:
-      return #value == "true";
-
-    $default:
-      $error "Unsupported type '" +++ $Type.name +++ "'";
   $endswitch
 }
 
