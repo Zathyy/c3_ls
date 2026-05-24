@@ -26,26 +26,24 @@ struct LspInitializeResponse
 	}
 }
 
-<*
-	https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#serverCapabilities
-*>
-$expand(derive(LspServerCapabilities::name, dessert));
-struct LspServerCapabilities @DStruct({ .rename_all = CAMEL_CASE })
-{
-	TextDocumentSyncOptions text_document_sync;
-
-}
-
 fn void response(Allocator allocator, LspMessage* message)
 {
 	LspInitializeResponse response = {
 		.jsonrpc = message.rpc,
 		.id = message.id.get() ?? -1,
 		.result = {
-			.capabilities = { .text_document_sync = {
-				.open_close = true,
-				.change = INCREMENTAL,
-			}},
+			.capabilities = { 
+				.text_document_sync = {
+					.open_close = true,
+					.change = INCREMENTAL,
+				},
+				.completion_provider = {
+                    .resolve_provider = true,
+                    .completion_item = {
+                        .label_detail_support = true
+                    }
+				}
+			},
 			.serverInfo = {
 				.name = "c3_ls",
 				.version = env::PROJECT_VERSION,
