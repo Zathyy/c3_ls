@@ -37,17 +37,12 @@ fn void response(Allocator allocator, LspProject* project, LspMessage* message)
 	LspPosition pos = message.params.completion.position;
 
     CompletionItem[]? items = completion::resolve(project, file_uri, pos);
-    if (catch err = items)
-    {
-        //TODO:
-        return;
-    }
 
 	LspCompletionResponse response = {
 		.jsonrpc = message.rpc,
 		.id = message.id.get() ?? -1,
 		.is_incomplete = false,
-        .items = items,
+        .items = items ?? {},
 	};
 
 	String response_json = translator::encode(response, allocator);
