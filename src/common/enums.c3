@@ -8,7 +8,7 @@ import derive;
 
 
 $expand(derive(TraceKind::name, dessert));
-enum TraceKind : char (String name)
+enum TraceKind : char (String name) @DEnum({ .as = FIELD, .field = "name" })
 {
 	OFF      { "off" },
 	MESSAGES { "messages" },
