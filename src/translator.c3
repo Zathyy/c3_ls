@@ -95,11 +95,11 @@ macro IoDecodeResult? decode(Allocator allocator, String message)
 
 	String json_message = split[1][:content_length];
 	
-	sz method_idx = json_message.index_of("\"method\":")!!;
-	sz params_idx = json_message.index_of("\"params\":")!!;
+	sz method_idx = json_message.index_of("\"method\":") ?? -1;
+	sz params_idx = json_message.index_of("\"params\":") ?? -1;
 	// if the method is after the params, we move it at the start of the json string
 	// so it can be deserialized properly
-	if (method_idx > params_idx)
+	if (params_idx != -1 && method_idx > params_idx)
 	{
 		method_idx = json_message.rindex_of("\"method\":")!!;
 		int method_len = "\"method\":".len;
