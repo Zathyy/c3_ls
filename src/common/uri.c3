@@ -57,10 +57,12 @@ fn Uri? parse(Allocator allocator, String raw_uri) => @pool()
 	String remaining_path = raw_uri[scheme_bound + 3..];
 
 	// strip all leading slashes
-	while (remaining_path.starts_with("/"))
-    {
-        remaining_path = remaining_path[1..];
-    }
+	$if env::WIN32:
+		while (remaining_path.starts_with("/"))
+		{
+			remaining_path = remaining_path[1..];
+		}
+	$endif
 
 	// Adjust for Windows authority/drive formatting quirks
 	// Example: '/C%3A/foo' -> first slash is authority spacer, drop it so we get 'C%3A/foo'
@@ -119,7 +121,7 @@ fn Uri? parse(Allocator allocator, String raw_uri) => @pool()
 	};
 }
 
-fn void uri_windows_test() @test
+fn void uri_windows_test() @test @if(env::WIN32)
 {
     String value = `file:///C%3A/project/readme.md`;
     Uri expected = { 
@@ -134,13 +136,13 @@ fn void uri_windows_test() @test
     assert(uri == expected);
 }
 
-fn void uri_linux_test() @test
+fn void uri_linux_test() @test @if(env::LINUX)
 {
     String value = `file:///home/user/code/main.c3`;
     
     Uri expected = { 
         .scheme = "file",
-        .path = "home/user/code/main.c3", 
+        .path = "/home/user/code/main.c3", 
     };
 
     Uri uri = parse(mem, value)!!;
