@@ -21,6 +21,7 @@ import uri;
 <*
     https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#completionItemKind
 *>
+$expand(derive(CompletionItemKind::name, dessert));
 constdef CompletionItemKind : int
 {
 	TEXT = 1,

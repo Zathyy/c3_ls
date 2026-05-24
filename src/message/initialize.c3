@@ -32,7 +32,7 @@ struct LspInitializeResponse
 $expand(derive(LspServerCapabilities::name, dessert));
 struct LspServerCapabilities @DStruct({ .rename_all = CAMEL_CASE })
 {
-	TextDocumentSyncOptions;
+	TextDocumentSyncOptions text_document_sync;
 
 }
 
