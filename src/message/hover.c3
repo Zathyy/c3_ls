@@ -19,7 +19,7 @@ enum HoverContentKind
     MARKUP_CONTENT
 }
 
-union MarkupContentUnion @DUnion({ .inlined = true })
+union MarkupContentUnion
 {
 	MarkedString marked_string;
 	MarkedString[] marked_string_array;
@@ -30,7 +30,7 @@ $expand(derive(LspHoverResponse::name, dessert::serialize));
 struct LspHoverResponse @DStruct({ .rename_all = CAMEL_CASE })
 {	
 	HoverContentKind content_kind @DField({ .skip = true });
-   	MarkupContentUnion contents @DField({ .tagged_by = "content_kind" });
+   	MarkupContentUnion contents @DField({ .tagged = { .by = "content_kind", .inlined = true } });
 	<*
 		An optional range is a range inside a text document
 	 	that is used to visualize a hover, e.g. by changing the background color.

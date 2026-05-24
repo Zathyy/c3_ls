@@ -29,7 +29,7 @@ enum MessageKind : char (String name) @DEnum({ .as = FIELD, .field = "name" })
 	EXIT         { "exit" },
 }
 
-union MessageParams @DUnion({ .inlined = true })
+union MessageParams
 {
 	Object* unknown;
 	InitializeParams initialize;
