@@ -11,14 +11,6 @@ import derive;
 typedef LspUri = inline String;
 typedef DocumentUri = inline String;
 
-$expand(derive(TraceKind::name, dessert));
-enum TraceKind : char (String name)
-{
-	OFF      { "off" },
-	MESSAGES { "messages" },
-	VERBOSE  { "verbose" }
-}
-
 $expand(derive(WorkspaceFolder::name, dessert));
 struct WorkspaceFolder 
 {
@@ -65,21 +57,6 @@ struct LspLocation
 	LspRange range;
 }
 
-$expand(derive(DiagnosticSeverity::name, dessert));
-constdef DiagnosticSeverity : int
-{
-	ERROR = 1,
-	WARNING = 2,
-	INFORMATION = 3,
-	HINT = 4,
-}
-
-$expand(derive(DiagnosticTag::name, dessert));
-constdef DiagnosticTag : int 
-{
-	UNNECESSARY = 1,
-	DEPRECATED = 2,
-}
 
 $expand(derive(Diagnostic::name, dessert));
 struct Diagnostic 
@@ -89,13 +66,6 @@ struct Diagnostic
 	String source;
 	String message;
 	DiagnosticTag[] tags;
-}
-
-$expand(derive(MarkupKind::name, dessert));
-enum MarkupKind : char (String name) @DEnum({ .as = FIELD, .field = "name" })
-{
-	PLAIN_TEXT { "plaintext" },
-	MARKDOWN   { "markdown" }
 }
 
 $expand(derive(MarkedString::name, dessert));
@@ -112,26 +82,6 @@ struct MarkupContent
 	String value;
 }
 
-$expand(derive(TextDocumentSyncKind::name, dessert));
-constdef TextDocumentSyncKind
-{
-	<*
-		Documents should not be synced at all.
-	*>
-	NONE = 0,
-	<*
-		Documents are synced by always sending the full content
-		of the document.
-	*>
-	FULL = 1,
-	<*
-		Documents are synced by sending the full content on open.
-		After that only incremental updates to the document are
-		sent.
-	*>
-	INCREMENTAL = 2,
-}
-
 $expand(derive(TextDocumentSyncOptions::name, dessert));
 struct TextDocumentSyncOptions @DStruct({ .rename_all = CAMEL_CASE })
 {
@@ -144,28 +94,6 @@ struct TextDocumentSyncOptions @DStruct({ .rename_all = CAMEL_CASE })
 	TextDocumentSyncKind change;
 }
 
-$expand(derive(CompletionTriggerKind::name, dessert));
-constdef CompletionTriggerKind : int
-{
-	<*
-	 	Completion was triggered by typing an identifier (24x7 code
-	  	complete), manual invocation (e.g Ctrl+Space) or via API.
-	*>
-	INVOKED = 1,
-
-	<*
-	 	Completion was triggered by a trigger character specified by
-		the `triggerCharacters` properties of the
-		`CompletionRegistrationOptions`.
-	*>
-	TRIGGER_CHARACTER = 2,
-
-	<*
-		Completion was re-triggered as the current completion list is incomplete.
-	*>
-	TRIGGER_FOR_INCOMPLETE_COMPLETIONS = 3,
-}
-
 $expand(derive(CompletionContext::name, dessert));
 struct CompletionContext
 {
@@ -176,4 +104,17 @@ struct CompletionContext
 		`triggerKind !== CompletionTriggerKind.TriggerCharacter`
 	*>
 	Maybe{String} trigger_character;
+}
+
+$expand(derive(CompletionItem::name, dessert));
+struct CompletionItem 
+{
+	String label;
+    CompletionItemKind kind;
+    <*
+        A human-readable string with additional information
+	    about this item, like type or symbol information.
+    *>
+    String detail;
+	String documentation @DField({ .skip_if_empty = true });
 }
