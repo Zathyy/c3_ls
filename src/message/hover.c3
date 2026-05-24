@@ -27,7 +27,7 @@ union MarkupContentUnion @DUnion({ .inlined = true })
 }
 
 $expand(derive(LspHoverResponse::name, dessert::serialize));
-struct LspHoverResponse
+struct LspHoverResponse @DStruct({ .rename_all = CAMEL_CASE })
 {	
 	HoverContentKind content_kind @DField({ .skip = true });
    	MarkupContentUnion contents @DField({ .tagged_by = "content_kind" });
@@ -39,10 +39,10 @@ struct LspHoverResponse
 }
 
 $expand(derive(LspServerCapabilities::name, dessert));
-struct LspServerCapabilities
+struct LspServerCapabilities @DStruct({ .rename_all = CAMEL_CASE })
 {
-	bool dynamic_registration @DField({ .rename = "dynamicRegistration" });
-	MarkupKind[] content_format @DField({ .rename = "contentFormat" });
+	bool dynamic_registration;
+	MarkupKind[] content_format;
 }
 
 fn void response(Allocator allocator, LspMessage* message)

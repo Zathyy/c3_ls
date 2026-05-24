@@ -30,9 +30,9 @@ struct LspInitializeResponse
 	https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#serverCapabilities
 *>
 $expand(derive(LspServerCapabilities::name, dessert));
-struct LspServerCapabilities
+struct LspServerCapabilities @DStruct({ .rename_all = CAMEL_CASE })
 {
-	TextDocumentSyncOptions text_document_sync @DField({ .rename = "textDocumentSync" });
+	TextDocumentSyncOptions;
 
 }
 

@@ -27,10 +27,10 @@ struct WorkspaceFolder
 }
 
 $expand(derive(TextDocumentItem::name, dessert));
-struct TextDocumentItem
+struct TextDocumentItem @DStruct({ .rename_all = CAMEL_CASE })
 {
 	DocumentUri uri;
-	String language_id @DField({ .rename = "languageId" });
+	String language_id;
 	int version;
 	String text;
 }
@@ -133,13 +133,13 @@ constdef TextDocumentSyncKind
 }
 
 $expand(derive(TextDocumentSyncOptions::name, dessert));
-struct TextDocumentSyncOptions
+struct TextDocumentSyncOptions @DStruct({ .rename_all = CAMEL_CASE })
 {
 	<*
 		Open and close notifications are sent to the server. If omitted open
 		close notifications should not be sent.
 	*>
-	bool open_close @DField({ .rename = "openClose" });
+	bool open_close;
 
 	TextDocumentSyncKind change;
 }

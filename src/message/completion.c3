@@ -65,7 +65,7 @@ struct CompletionItem
 }
 
 $expand(derive(LspCompletionResponse::name, dessert));
-struct LspCompletionResponse
+struct LspCompletionResponse @DStruct({ .rename_all = CAMEL_CASE })
 {
 	String jsonrpc;
 	int id;
@@ -85,7 +85,7 @@ struct LspCompletionResponse
 	https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#completionOptions
 *>
 $expand(derive(LspServerCapabilities::name, dessert));
-struct LspServerCapabilities
+struct LspServerCapabilities @DStruct({ .rename_all = CAMEL_CASE })
 {
 	<*
 		The additional characters, beyond the defaults provided by the client (typically
