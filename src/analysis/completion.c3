@@ -22,7 +22,8 @@ struct Context
 alias CompletionProvider = fn void(Context* ctx, List{CompletionItem}* items);
 
 const CompletionProvider[] PROVIDERS = {
-    &provide_keywords
+    &provide_keywords,
+    &provide_global
 };
 
 fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
@@ -60,6 +61,38 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
 	return items.array_view();
 }
 
+fn void provide_global(Context* ctx, List{CompletionItem}* items)
+{
+    String active_mod_name = ctx.section.parent_module.name;
+
+    ctx.ws.modules.@each(; name, mod)
+    {
+        if (name == active_mod_name) return;
+
+        foreach (sec : mod.sections)
+        {
+            foreach (node_handle : sec.source_file.ast.top_level_nodes)
+            {
+                if (node_handle < sec.start_node_idx || node_handle >= sec.end_node_idx) continue;
+
+                NodeKind kind = sec.source_file.ast.get_kind((Node)node_handle);
+                Cursor cursor = { sec, (Node)node_handle };
+                if (catch cursor.spelling()) continue;
+                String type_name = cursor.spelling() ?? "";
+
+                if (type_name.len == 0 || (ctx.prefix.len > 0 && !type_name.starts_with(ctx.prefix))) continue;
+
+                items.push((CompletionItem){
+                    .label = type_name.copy(ctx.allocator),
+                    .detail = string::format(ctx.allocator, "(auto-import %s)", name),
+                    .kind = analysis::completion_kind_from_node(kind),
+                    .documentation = string::format(ctx.allocator, "Type declared in module '%s'. Select to auto-import.", name)
+                });
+            }
+        }
+    };
+}
+
 fn void provide_keywords(Context* ctx, List{CompletionItem}* items)
 {
     $foreach $kw : Keywords::values:
@@ -72,4 +105,4 @@ fn void provide_keywords(Context* ctx, List{CompletionItem}* items)
             });
         }
     $endforeach
-}   
+}
