@@ -93,6 +93,8 @@ fn void response(Allocator allocator, LspProject* project, LspMessage* message)
 
     completion::Context context = {
         .project = project,
+        .uri = file_uri,
+        .position = pos,
     };
 
     CompletionItem[]? items = completion::resolve(&context);
