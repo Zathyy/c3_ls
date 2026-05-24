@@ -2,12 +2,6 @@ module lsp::msg_handler::completion;
 import lsp::translator;
 import lsp::io_handler;
 import lsp::analysis;
-import lsp::analysis::completion;
-
-import c3_parser::workspace;
-import c3_parser::ast;
-import c3_parser::cursor;
-import c3_parser::common;
 
 import std::io;
 import std::collections::object;
@@ -91,13 +85,7 @@ fn void response(Allocator allocator, LspProject* project, LspMessage* message)
 	if (catch err = file_uri) return;
 	LspPosition pos = message.params.completion.position;
 
-    completion::Context context = {
-        .project = project,
-        .uri = file_uri,
-        .position = pos,
-    };
-
-    CompletionItem[]? items = completion::resolve(&context);
+    CompletionItem[]? items = completion::resolve(project, file_uri, pos);
     if (catch err = items)
     {
         //TODO:
