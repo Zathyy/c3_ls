@@ -2,6 +2,7 @@ module lsp::msg_handler::completion;
 import lsp::translator;
 import lsp::io_handler;
 import lsp::analysis;
+import lsp::analysis::completion;
 
 import c3_parser::workspace;
 import c3_parser::ast;
@@ -17,53 +18,6 @@ import dessert;
 import derive;
 
 import uri;
-
-<*
-    https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#completionItemKind
-*>
-$expand(derive(CompletionItemKind::name, dessert));
-constdef CompletionItemKind : int
-{
-	TEXT = 1,
-	METHOD = 2,
-	FUNCTION = 3,
-	CONSTRUCTOR = 4,
-	FIELD = 5,
-	VARIABLE = 6,
-	CLASS = 7,
-	INTERFACE = 8,
-	MODULE = 9,
-	PROPERTY = 10,
-	UNIT = 11,
-	VALUE = 12,
-	ENUM = 13,
-	KEYWORD = 14,
-	SNIPPET = 15,
-	COLOR = 16,
-	FILE = 17,
-	REFERENCE = 18,
-	FOLDER = 19,
-	ENUMMEMBER = 20,
-	CONSTANT = 21,
-	STRUCT = 22,
-	EVENT = 23,
-	OPERATOR = 24,
-	TYPEPARAMETER = 25,
-}
-
-$expand(derive(CompletionItem::name, dessert));
-struct CompletionItem 
-{
-	String label;
-    CompletionItemKind kind;
-    <*
-        A human-readable string with additional information
-	    about this item, like type or symbol information.
-    *>
-    String detail;
-	String documentation @DField({ .skip_if_empty = true });
-
-}
 
 $expand(derive(LspCompletionResponse::name, dessert));
 struct LspCompletionResponse @DStruct({ .rename_all = CAMEL_CASE })
@@ -137,10 +91,22 @@ fn void response(Allocator allocator, LspProject* project, LspMessage* message)
 	if (catch err = file_uri) return;
 	LspPosition pos = message.params.completion.position;
 
+    completion::Context context = {
+        .project = project,
+    };
+
+    CompletionItem[]? items = completion::resolve(&context);
+    if (catch err = items)
+    {
+        //TODO:
+        return;
+    }
+
 	LspCompletionResponse response = {
 		.jsonrpc = message.rpc,
 		.id = message.id.get() ?? -1,
 		.is_incomplete = false,
+        .items = items,
 	};
 
 	String response_json = translator::encode(response, allocator);
