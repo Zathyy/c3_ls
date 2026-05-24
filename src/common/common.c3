@@ -58,8 +58,8 @@ struct LspRange
 	LspPosition end;
 }
 
-$expand(derive(Location::name, dessert));
-struct Location 
+$expand(derive(LspLocation::name, dessert));
+struct LspLocation 
 {
 	DocumentUri uri;
 	LspRange range;
