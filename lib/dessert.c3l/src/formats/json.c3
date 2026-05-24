@@ -86,8 +86,8 @@ fn void? JsonValue.print(self) {
       };
       io::printf("}");
 
-    default:
-      return NOT_FOUND~;
+    // default:
+    //   return NOT_FOUND~;
   }
 }
 
@@ -134,8 +134,8 @@ fn String? JsonValue.to_string(self) {
       s.append("}");
       return s.str_view();
 
-    default:
-      return NOT_FOUND~;
+    // default:
+    //   return NOT_FOUND~;
   }
 }
 

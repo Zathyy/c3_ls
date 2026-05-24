@@ -54,7 +54,7 @@ struct InitializeParams @DStruct({ .rename_all = CAMEL_CASE })
 
 	Maybe{TraceKind} trace;
 
-	WorkspaceFolder[] workspace_folders;
+	Maybe{WorkspaceFolder[]} workspace_folders;
 }
 
 $expand(derive(DidOpenParams::name, dessert));

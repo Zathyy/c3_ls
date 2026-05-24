@@ -338,13 +338,7 @@ macro serialize_value(serializer, value, $config) {
       if (catch inner) {
         serializer.serialize_null()!;
       } else {
-        $if $Typeof(inner)::kind == STRUCT &&& !$config.flatten:
-          serializer.struct_start($Typeof(inner)::name)!;
-        $endif
-        inner.serialize(serializer)!;
-        $if $Typeof(inner)::kind == STRUCT &&& !$config.flatten:
-          serializer.struct_end($Typeof(inner)::name)!;
-        $endif
+        serialize_value(serializer, inner, $config)!;
       }
 
     $case $defined(lengthof(value)) &&& $defined(value[0]):
