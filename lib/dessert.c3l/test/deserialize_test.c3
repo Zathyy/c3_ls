@@ -711,7 +711,7 @@ fn void test_des_dunion_anon_roundtrip_second() @test {
   assert(diff < 1e-9);
 }
 
-// ── Tests: tagged union match_by = ORDINAL (enum tag) ────────────────────────
+// ── Tests: tagged union match.by = ORDINAL (enum tag) ────────────────────────
 // Named inlined union: JSON key is the union field name ("payload");
 // value is the active member's value directly. kind serialized as ordinal int.
 
@@ -720,7 +720,7 @@ enum DMBOrdinalTag { ORD_FIRST, ORD_SECOND, ORD_THIRD }
 
 struct DMatchByOrdinal {
   DMBOrdinalTag kind;
-  union payload @DField({ .tagged = { .by = "kind", .inlined = true, .match_by = ORDINAL } }) {
+  union payload @DField({ .tagged = { .by = "kind", .inlined = true, .match = { .by = ORDINAL } } }) {
     int    first;    // selected when kind ordinal == 0 (ORD_FIRST)
     double second;   // selected when kind ordinal == 1 (ORD_SECOND)
     String third;    // selected when kind ordinal == 2 (ORD_THIRD)
@@ -757,7 +757,7 @@ fn void test_des_match_by_ordinal_roundtrip() @test {
   assert(copy.payload.third == "roundtrip");
 }
 
-// ── Tests: tagged union match_by = DESCRIPTION (enum tag) ────────────────────
+// ── Tests: tagged union match.by = DESCRIPTION (enum tag) ────────────────────
 // DESCRIPTION: switch on enum VALUE. Union member names uppercased must match
 // enum value names. E.g. member "desc_a" → @str_to_upper → "DESC_A" → case DESC_A.
 
@@ -766,7 +766,7 @@ enum DMBDescTag { DESC_A, DESC_B, DESC_C }
 
 struct DMatchByDesc {
   DMBDescTag kind;
-  union payload @DField({ .tagged = { .by = "kind", .inlined = true, .match_by = DESCRIPTION } }) {
+  union payload @DField({ .tagged = { .by = "kind", .inlined = true, .match = { .by = DESCRIPTION } } }) {
     int    desc_a;   // @str_to_upper("desc_a") = "DESC_A" → case DESC_A
     double desc_b;   // → case DESC_B
     String desc_c;   // → case DESC_C
@@ -802,7 +802,7 @@ fn void test_des_match_by_desc_roundtrip() @test {
   assert(copy.payload.desc_c == "desc");
 }
 
-// ── Tests: tagged union match_by = FIELD (enum with String associated field) ──
+// ── Tests: tagged union match.by = FIELD (enum with String associated field) ──
 // FIELD: switch on enum.variant (String). Value must equal union member name exactly.
 // E.g. FLD_A { "fld_a" } → kind.variant == "fld_a" → case "fld_a" → member fld_a.
 
@@ -815,7 +815,7 @@ enum DMBFieldTag : (String variant) {
 
 struct DMatchByField {
   DMBFieldTag kind;
-  union payload @DField({ .tagged = { .by = "kind", .inlined = true, .match_by = FIELD, .field = "variant" } }) {
+  union payload @DField({ .tagged = { .by = "kind", .inlined = true, .match = { .by = FIELD, .field = "variant" } } }) {
     int    fld_a;   // matched when kind.variant == "fld_a"
     double fld_b;   // matched when kind.variant == "fld_b"
     String fld_c;   // matched when kind.variant == "fld_c"
@@ -849,6 +849,80 @@ fn void test_des_match_by_field_roundtrip() @test {
   DMatchByField copy = des::deserialize{DMatchByField}(&&json::deserializer(j.to_string()!!))!!;
   assert(copy.kind == DMBFieldTag.FLD_C);
   assert(copy.payload.fld_c == "field");
+}
+
+// ── Tests: tagged union unmapped.as ─────────────────────────────────────────
+// unmapped.as controls behavior when the tag value matches no union member.
+// Default (ERROR) → UNMAPPED_UNION_VARIANT fault.
+// EMPTY_STRUCT → consume payload as Object*. NULL → Maybe{int}. ZERO → int.
+
+// Default (no unmapped.as = ERROR): out-of-range kind raises UNMAPPED_UNION_VARIANT
+struct DUnmappedError {
+  int kind;
+  union payload @DField({ .tagged = { .by = "kind", .inlined = true } }) {
+    int    first;
+    double second;
+    String third;
+  }
+}
+fn void? DUnmappedError.deserialize(&self, Deserializer deserializer) => des::impl_deserialize(self, deserializer);
+
+fn void test_des_unmapped_as_error() @test {
+  const String JSON = `{"kind": 99, "payload": 0}`;  // ordinal 99 doesn't match member 0, 1, or 2
+  DUnmappedError? v = des::deserialize{DUnmappedError}(&&json::deserializer(JSON));
+  if (catch err = v) {
+    assert(err == des::UNMAPPED_UNION_VARIANT);
+    return;
+  }
+  assert(false);  // expected UNMAPPED_UNION_VARIANT but no fault was raised
+}
+
+// unmapped.as = EMPTY_STRUCT: out-of-range kind → consume payload as Object* {}
+struct DUnmappedEmptyStruct {
+  int kind;
+  union payload @DField({ .tagged = { .by = "kind", .inlined = true, .unmapped = { .as = EMPTY_STRUCT } } }) {
+    int    first;
+    double second;
+  }
+}
+fn void? DUnmappedEmptyStruct.deserialize(&self, Deserializer deserializer) => des::impl_deserialize(self, deserializer);
+
+fn void test_des_unmapped_as_empty_struct() @test {
+  const String JSON = `{"kind": 99, "payload": {}}`;
+  DUnmappedEmptyStruct v = des::deserialize{DUnmappedEmptyStruct}(&&json::deserializer(JSON))!!;
+  assert(v.kind == 99);
+}
+
+// unmapped.as = NULL: out-of-range kind → consume payload as null
+struct DUnmappedNull {
+  int kind;
+  union payload @DField({ .tagged = { .by = "kind", .inlined = true, .unmapped = { .as = NULL } } }) {
+    int    first;
+    double second;
+  }
+}
+fn void? DUnmappedNull.deserialize(&self, Deserializer deserializer) => des::impl_deserialize(self, deserializer);
+
+fn void test_des_unmapped_as_null() @test {
+  const String JSON = `{"kind": 99, "payload": null}`;
+  DUnmappedNull v = des::deserialize{DUnmappedNull}(&&json::deserializer(JSON))!!;
+  assert(v.kind == 99);
+}
+
+// unmapped.as = ZERO: out-of-range kind → consume payload as int
+struct DUnmappedZero {
+  int kind;
+  union payload @DField({ .tagged = { .by = "kind", .inlined = true, .unmapped = { .as = ZERO } } }) {
+    int    first;
+    double second;
+  }
+}
+fn void? DUnmappedZero.deserialize(&self, Deserializer deserializer) => des::impl_deserialize(self, deserializer);
+
+fn void test_des_unmapped_as_zero() @test {
+  const String JSON = `{"kind": 99, "payload": 0}`;
+  DUnmappedZero v = des::deserialize{DUnmappedZero}(&&json::deserializer(JSON))!!;
+  assert(v.kind == 99);
 }
 
 fn void test_des_roundtrip_null_pointer() @test {

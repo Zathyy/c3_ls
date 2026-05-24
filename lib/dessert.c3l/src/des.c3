@@ -216,26 +216,26 @@ macro bool? @des_field(deserializer, value, $member, next_key, List{String} name
           var $UType = $member.type;
 
           $switch:
-            $case $config.tagged.match_by == ORDINAL ||| $Typeof(tag_value)::kind != ENUM:
+            $case $config.tagged.match.by == ORDINAL ||| $Typeof(tag_value)::kind != ENUM:
               $the_switch = "switch ((sz) tag_value) {";
               $foreach $i, $m : $UType::members:
                 $the_switch +++= @sprintf("case %s:\n", $i);
                 $the_switch +++= @sprintf("@des_field(deserializer, &next_value, $UType::members[%s], $UType::members[%s].name, {}, {})!;\n", $i, $i);
               $endforeach
-              $the_switch +++= "default: return UNMAPPED_UNION_VARIANT~;";
+              $the_switch +++= @default_unmapped($config);
               $the_switch +++= "}";
 
-            $case $config.tagged.match_by == DESCRIPTION:
+            $case $config.tagged.match.by == DESCRIPTION:
               $the_switch = "switch (tag_value) {";
               $foreach $i, $m : $UType::members:
                 $the_switch +++= @sprintf("case %s:\n", utils::@str_to_upper($m.name));
                 $the_switch +++= @sprintf("@des_field(deserializer, &next_value, $UType::members[%s], $UType::members[%s].name, {}, {})!;\n", $i, $i);
               $endforeach
-              $the_switch +++= "default: return UNMAPPED_UNION_VARIANT~;";
+              $the_switch +++= @default_unmapped($config);
               $the_switch +++= "}";
 
-            $case $config.tagged.match_by == FIELD:
-              var $field_name = $config.tagged.field;
+            $case $config.tagged.match.by == FIELD:
+              var $field_name = $config.tagged.match.field;
               $if $field_name.len == 0:
                 $error "While serializing a tagged union: When the 'tagged.match_by' attribute is set to 'FIELD', 'field' must be provided with the name of an associated field of the enum.";
               $endif
@@ -253,7 +253,8 @@ macro bool? @des_field(deserializer, value, $member, next_key, List{String} name
                 $the_switch +++= @sprintf("case \"%s\":\n", $m.name);
                 $the_switch +++= @sprintf("@des_field(deserializer, &next_value, $UType::members[%s], $UType::members[%s].name, {}, {})!;\n", $i, $i);
               $endforeach
-              $the_switch +++= "default: return UNMAPPED_UNION_VARIANT~;";
+              $the_switch +++= @default_unmapped($config);
+
               $the_switch +++= "}";
 
           $endswitch
@@ -283,4 +284,17 @@ macro bool? @des_field(deserializer, value, $member, next_key, List{String} name
   }
 
   return false;
+}
+
+macro @default_unmapped(DFieldConfig $config) @local @const {
+  $switch $config.tagged.unmapped.as:
+    $case ERROR:
+      return "default: return UNMAPPED_UNION_VARIANT~;";
+    $case EMPTY_STRUCT:
+      return "default: (void) deserialize{Object*}(deserializer)!;";
+    $case NULL:
+      return "default: (void) deserialize{Maybe{int}}(deserializer)!;";
+    $case ZERO:
+      return "default: (void) deserialize{int}(deserializer)!;";
+  $endswitch
 }

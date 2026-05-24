@@ -673,7 +673,7 @@ fn void test_ser_camel_case() @test {
   assert(j.value.d.get("birthYear")!!.value.i == 1990);
 }
 
-// ── Tests: tagged union match_by = ORDINAL (enum tag) ────────────────────────
+// ── Tests: tagged union match.by = ORDINAL (enum tag) ────────────────────────
 // ORDINAL: enum ordinal (0-based) selects the active union member by index.
 // Tag enum serializes as its description string (default). Named inlined union:
 // JSON key = union field name ("payload"), value = active member value directly.
@@ -683,7 +683,7 @@ enum SMBOrdinalTag { ORD_FIRST, ORD_SECOND, ORD_THIRD }
 
 struct SMatchByOrdinal {
   SMBOrdinalTag kind;
-  union payload @DField({ .tagged = { .by = "kind", .inlined = true, .match_by = ORDINAL } }) {
+  union payload @DField({ .tagged = { .by = "kind", .inlined = true, .match = { .by = ORDINAL } } }) {
     int    first;    // selected when kind ordinal == 0 (ORD_FIRST)
     double second;   // selected when kind ordinal == 1 (ORD_SECOND)
     String third;    // selected when kind ordinal == 2 (ORD_THIRD)
@@ -729,7 +729,7 @@ fn void test_ser_match_by_ordinal_third() @test {
   assert(j.value.d.get("payload")!!.value.s == "hello");
 }
 
-// ── Tests: tagged union match_by = DESCRIPTION (enum tag) ────────────────────
+// ── Tests: tagged union match.by = DESCRIPTION (enum tag) ────────────────────
 // DESCRIPTION: switch on enum VALUE. Union member names uppercased must match
 // enum value names. E.g. member "desc_a" → @str_to_upper → "DESC_A" → case DESC_A.
 
@@ -738,7 +738,7 @@ enum SMBDescTag { DESC_A, DESC_B, DESC_C }
 
 struct SMatchByDesc {
   SMBDescTag kind;
-  union payload @DField({ .tagged = { .by = "kind", .inlined = true, .match_by = DESCRIPTION } }) {
+  union payload @DField({ .tagged = { .by = "kind", .inlined = true, .match = { .by = DESCRIPTION } } }) {
     int    desc_a;   // @str_to_upper("desc_a") = "DESC_A" → case DESC_A
     double desc_b;   // → case DESC_B
     String desc_c;   // → case DESC_C
@@ -784,7 +784,7 @@ fn void test_ser_match_by_desc_third() @test {
   assert(j.value.d.get("payload")!!.value.s == "world");
 }
 
-// ── Tests: tagged union match_by = FIELD (enum with String associated field) ──
+// ── Tests: tagged union match.by = FIELD (enum with String associated field) ──
 // FIELD: switch on enum.variant (String). Value must equal union member name exactly.
 // E.g. FLD_A { "fld_a" } → kind.variant == "fld_a" → case "fld_a" → member fld_a.
 
@@ -797,7 +797,7 @@ enum SMBFieldTag : (String variant) {
 
 struct SMatchByField {
   SMBFieldTag kind;
-  union payload @DField({ .tagged = { .by = "kind", .inlined = true, .match_by = FIELD, .field = "variant" } }) {
+  union payload @DField({ .tagged = { .by = "kind", .inlined = true, .match = { .by = FIELD, .field = "variant" } } }) {
     int    fld_a;   // matched when kind.variant == "fld_a"
     double fld_b;   // matched when kind.variant == "fld_b"
     String fld_c;   // matched when kind.variant == "fld_c"
@@ -841,6 +841,94 @@ fn void test_ser_match_by_field_third() @test {
   assert(j.value.d.get("kind")!!.value.s == "FLD_C");
   assert(j.value.d.get("payload")!!.kind == JsonValueKind.STRING);
   assert(j.value.d.get("payload")!!.value.s == "test");
+}
+
+// ── Tests: tagged union unmapped.as ─────────────────────────────────────────
+// unmapped.as controls behavior when the tag value matches no union member.
+// Default (ERROR) → UNMAPPED_UNION_VARIANT fault.
+// EMPTY_STRUCT → serialize payload as {}. NULL → null. ZERO → 0.
+
+// Default (no unmapped.as = ERROR): out-of-range kind raises UNMAPPED_UNION_VARIANT
+struct SUnmappedError {
+  int kind;
+  union payload @DField({ .tagged = { .by = "kind", .inlined = true } }) {
+    int    first;
+    double second;
+    String third;
+  }
+}
+fn void? SUnmappedError.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
+
+fn void test_ser_unmapped_as_error() @test {
+  SUnmappedError s = { .kind = 99 };   // ordinal 99 doesn't match member 0, 1, or 2
+  JsonSerializer js = json::serializer();
+  JsonValue? j = ser::serialize(&js, s);
+  if (catch err = j) {
+    assert(err == ser::UNMAPPED_UNION_VARIANT);
+    return;
+  }
+  assert(false);  // expected UNMAPPED_UNION_VARIANT but no fault was raised
+}
+
+// unmapped.as = EMPTY_STRUCT: out-of-range kind → payload serialized as {}
+struct SUnmappedEmptyStruct {
+  int kind;
+  union payload @DField({ .tagged = { .by = "kind", .inlined = true, .unmapped = { .as = EMPTY_STRUCT } } }) {
+    int    first;
+    double second;
+  }
+}
+fn void? SUnmappedEmptyStruct.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
+
+fn void test_ser_unmapped_as_empty_struct() @test {
+  SUnmappedEmptyStruct s = { .kind = 99 };
+  JsonSerializer js = json::serializer();
+  JsonValue j = ser::serialize(&js, s)!!;
+  defer j.free();
+
+  assert(j.value.d.get("kind")!!.value.i == 99);
+  assert(j.value.d.get("payload")!!.kind == JsonValueKind.DICT);
+}
+
+// unmapped.as = NULL: out-of-range kind → payload serialized as null
+struct SUnmappedNull {
+  int kind;
+  union payload @DField({ .tagged = { .by = "kind", .inlined = true, .unmapped = { .as = NULL } } }) {
+    int    first;
+    double second;
+  }
+}
+fn void? SUnmappedNull.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
+
+fn void test_ser_unmapped_as_null() @test {
+  SUnmappedNull s = { .kind = 99 };
+  JsonSerializer js = json::serializer();
+  JsonValue j = ser::serialize(&js, s)!!;
+  defer j.free();
+
+  assert(j.value.d.get("kind")!!.value.i == 99);
+  assert(j.value.d.get("payload")!!.kind == JsonValueKind.NULL);
+}
+
+// unmapped.as = ZERO: out-of-range kind → payload serialized as 0
+struct SUnmappedZero {
+  int kind;
+  union payload @DField({ .tagged = { .by = "kind", .inlined = true, .unmapped = { .as = ZERO } } }) {
+    int    first;
+    double second;
+  }
+}
+fn void? SUnmappedZero.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
+
+fn void test_ser_unmapped_as_zero() @test {
+  SUnmappedZero s = { .kind = 99 };
+  JsonSerializer js = json::serializer();
+  JsonValue j = ser::serialize(&js, s)!!;
+  defer j.free();
+
+  assert(j.value.d.get("kind")!!.value.i == 99);
+  assert(j.value.d.get("payload")!!.kind == JsonValueKind.INT);
+  assert(j.value.d.get("payload")!!.value.i == 0);
 }
 
 // ── Tests: CSV ───────────────────────────────────────────────────────────────

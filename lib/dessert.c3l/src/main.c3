@@ -3,6 +3,7 @@ import std;
 import dessert;
 import json;
 import derive;
+import std::collections::object;
 
 $expand(derive(Animal::name, dessert));
 struct Animal {
@@ -89,18 +90,41 @@ enum Bar : (String name) {
 $expand(derive(Request::name, dessert));
 struct Request {
   Bar kind;
-  MyUnion p @DField({ .tagged = { .by = "kind", .inlined = true, .match_by = DESCRIPTION } });
+  MyUnion p @DField({ .tagged = { .by = "kind", .inlined = true, .match.by = DESCRIPTION, .unmapped.as = EMPTY_STRUCT } });
 }
 
+$expand(derive(Format::name, dessert));
+enum Format : (String mime) {
+  JSON_FMT { "json_fmt" },
+  CSV_FMT  { "csv_fmt"  },
+}
+
+$expand(derive(Output::name, dessert));
+struct Output {
+  Format kind;
+  union payload @DField({ .tagged = { .by = "kind", .inlined = true, .match = { .by = FIELD, .field = "mime" } } }) {
+    int    json_fmt;  // matched when kind.mime == "json_fmt"
+    String csv_fmt;   // matched when kind.mime == "csv_fmt"
+  }
+}
 fn void main() {
-  Request req = { .kind = THIRD, .p = {.second = { .x = 2 }} };
-  String s = ser::serialize(&&json::string_serializer(), req)!!;
+  // Request req = { .kind = THIRD, .p = {.second = { .x = 2 }} };
+  // String s = ser::serialize(&&json::string_serializer(), req)!!;
+  // io::printn(s);
+  //
+  // // Request p = des::deserialize{Request}(&&json::deserializer(s))!!;
+  // Request p = des::deserialize{Request}(&&json::deserializer(`{"kind":"THIRD","p":{"x":2}}`))!!;
+  // io::printn("DESERIALIZED:");
+  // io::printn(p.kind);
+  // io::printn(p.p.first);
+
+  Output o = { .kind = JSON_FMT, .payload.json_fmt = 12 };
+  String s = ser::serialize(&&json::string_serializer(), o)!!;
   io::printn(s);
 
-  Request p = des::deserialize{Request}(&&json::deserializer(s))!!;
-  io::printn("DESERIALIZED:");
-  io::printn(p.kind);
-  io::printn(p.p.second);
+  Output p = des::deserialize{Output}(&&json::deserializer(s))!!;
+  io::printn(string::from_struct(tmem, p));
+  io::printn(p.payload.json_fmt);
 
   // Request req2 = { .kind = 2, .third = "Wow" };
   // s = ser::serialize(&&json::string_serializer(), req2)!!;

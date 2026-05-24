@@ -31,7 +31,7 @@ enum MessageKind : char (String name) @DEnum({ .as = FIELD, .field = "name" })
 
 union MessageParams
 {
-	Object* unknown;
+	Object unknown;
 	InitializeParams initialize;
 	DidOpenParams did_open;
 	DidCloseParams did_close;

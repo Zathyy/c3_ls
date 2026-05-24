@@ -7,6 +7,12 @@ enum DessertEnum {
   FIELD,
 }
 
+enum UnmappedAs {
+  ERROR,
+  EMPTY_STRUCT,
+  NULL,
+  ZERO,
+}
 
 typedef FieldAttrs = String[];
 
@@ -22,6 +28,27 @@ fn String? FieldAttrs.get(&self, String needle) {
   return NOT_FOUND~;
 }
 
+struct DFieldUnionMatch {
+  <*
+    Specify the way the union variant is chosen from the tag value
+    *Only available if inlined is true and the tag field is an enum*
+  *>
+  DessertEnum by;
+
+  <*
+    Specify the field of the enum used to choose the union variant
+    *Only available if inlined is true and the tag field is an enum and match_by is FIELD*
+  *>
+  String field;
+}
+
+struct DFieldUnionUnmapped {
+  <*
+    If set, will use this to serialize/deserialize unmapped tag values
+  *>
+  UnmappedAs as;
+}
+
 struct DFieldUnionConfig {
   <* Specify another field to be used as the tag for this field type. *>
   String by;
@@ -32,17 +59,9 @@ struct DFieldUnionConfig {
   *>
   bool inlined;
 
-  <*
-    Specify the way the union variant is chosen from the tag value
-    *Only available if inlined is true and the tag field is an enum*
-  *>
-  DessertEnum match_by;
+  DFieldUnionMatch match;
 
-  <*
-    Specify the field of the enum used to choose the union variant
-    *Only available if inlined is true and the tag field is an enum and match_by is FIELD*
-  *>
-  String field;
+  DFieldUnionUnmapped unmapped;
 }
 
 struct DFieldConfig {

@@ -208,7 +208,7 @@ macro @impl_serialize_union($UType, s, Serializer serializer, $member, DFieldCon
   var $the_switch = "";
 
   $switch:
-    $case $config.tagged.match_by == ORDINAL ||| $Typeof(tag_value)::kind != ENUM:
+    $case $config.tagged.match.by == ORDINAL ||| $Typeof(tag_value)::kind != ENUM:
       $the_switch = "switch ((sz) tag_value) {";
 
       $foreach $i, $m : $UType::members:
@@ -219,11 +219,12 @@ macro @impl_serialize_union($UType, s, Serializer serializer, $member, DFieldCon
           $the_switch +++= @sprintf("@serialize_field(serializer, $config, &$member.get(*s), $UType::members[%s], $struct_config)!;\n", $i);
         $endif
       $endforeach
-      $the_switch +++= "default: return UNMAPPED_UNION_VARIANT~;";
+
+      $the_switch +++= @default_unmapped($config);
 
       $the_switch +++= "}";
 
-    $case $config.tagged.match_by == DESCRIPTION:
+    $case $config.tagged.match.by == DESCRIPTION:
       $the_switch = "switch (tag_value) {";
 
       $foreach $i, $m : $UType::members:
@@ -235,14 +236,14 @@ macro @impl_serialize_union($UType, s, Serializer serializer, $member, DFieldCon
         $endif
       $endforeach
 
-      $the_switch +++= "default: return UNMAPPED_UNION_VARIANT~;";
+      $the_switch +++= @default_unmapped($config);
 
       $the_switch +++= "}";
 
-    $case $config.tagged.match_by == FIELD:
-      var $field_name = $config.tagged.field;
+    $case $config.tagged.match.by == FIELD:
+      var $field_name = $config.tagged.match.field;
       $if $field_name.len == 0:
-        $error "While serializing a tagged union: When the 'tagged.match_by' attribute is set to 'FIELD', 'field' must be provided with the name of an associated field of the enum.";
+        $error "While serializing a tagged union: When the 'tagged.match.by' attribute is set to 'FIELD', 'field' must be provided with the name of an associated field of the enum.";
       $endif
 
       $if !$defined(tag_value.$field_name):
@@ -264,7 +265,7 @@ macro @impl_serialize_union($UType, s, Serializer serializer, $member, DFieldCon
         $endif
       $endforeach
 
-      $the_switch +++= "default: return UNMAPPED_UNION_VARIANT~;";
+      $the_switch +++= @default_unmapped($config);
 
       $the_switch +++= "}";
 
@@ -281,6 +282,19 @@ macro @impl_serialize_union($UType, s, Serializer serializer, $member, DFieldCon
     serializer.struct_end($member.type.name)!;
   $endif
 
+}
+
+macro @default_unmapped(DFieldConfig $config) @local @const {
+  $switch $config.tagged.unmapped.as:
+    $case ERROR:
+      return "default: return UNMAPPED_UNION_VARIANT~;";
+    $case EMPTY_STRUCT:
+      return "default: serializer.struct_start(\"EMPTY\")!; serializer.struct_end(\"EMPTY\")!;";
+    $case NULL:
+      return "default: serialize_value(serializer, (Maybe{int}) {}, $config)!;";
+    $case ZERO:
+      return "default: serialize_value(serializer, 0, $config)!;";
+  $endswitch
 }
 
 

@@ -86,8 +86,8 @@ struct Person {
 | `.rename`        | `String`   | Use a different name for this field in the output/input                           |
 | `.aliases`       | `String[]` | Alternative names to accept during deserialization (not yet implemented)          |
 | `.validator`     | `String`   | Call a validation method before serialization                                     |
-| `.flatten`       | `bool`     | Flatten a nested struct's fields directly into the parent object                  |
-| `.tagged_by`     | `String`   | Name of the sibling field whose value selects the active union member             |
+| `.flatten`       | `bool`                   | Flatten a nested struct's fields directly into the parent object |
+| `.tagged`        | `DFieldUnionConfig`      | Tagged union configuration (see Union attributes below)          |
 
 **Conditional skip methods:**
 
@@ -180,29 +180,46 @@ Use `@DField({ .tagged = { .by = "field" } })` on a union member to enable tagge
 
 **`DFieldUnionConfig` options (used as `.tagged = { ... }`):**
 
-| Option       | Type          | Description                                                                          |
-|--------------|---------------|--------------------------------------------------------------------------------------|
-| `.by`        | `String`      | Name of the sibling field whose value selects the active union member (**required**) |
-| `.inlined`   | `bool`        | Inline the active member's value directly (no wrapping object, `false` by default)  |
-| `.match_by`  | `DessertEnum` | How to match the tag value to a union member: `ORDINAL` (default when tag is int), `DESCRIPTION`, or `FIELD` |
-| `.field`     | `String`      | Associated enum field name; required when `.match_by = FIELD`                        |
+| Option       | Type                   | Description                                                                          |
+|--------------|------------------------|--------------------------------------------------------------------------------------|
+| `.by`        | `String`               | Name of the sibling field whose value selects the active union member (**required**) |
+| `.inlined`   | `bool`                 | Inline the active member's value directly (no wrapping object, `false` by default)  |
+| `.match`     | `DFieldUnionMatch`     | How to match the tag value to a union member (see below)                             |
+| `.unmapped`  | `DFieldUnionUnmapped`  | What to do when the tag value matches no union member (default: `ERROR`)             |
 
-**`match_by` modes:**
+**`DFieldUnionMatch` options (used as `.tagged = { .match = { ... } }`):**
+
+| Option    | Type          | Description                                                                                        |
+|-----------|---------------|----------------------------------------------------------------------------------------------------|
+| `.by`     | `DessertEnum` | How to match: `ORDINAL` (default for non-enum tags), `DESCRIPTION`, or `FIELD`                    |
+| `.field`  | `String`      | Associated enum field name (a `String`); required when `.by = FIELD`                              |
+
+**`match.by` modes:**
 
 | Value         | Behavior                                                                                           |
 |---------------|----------------------------------------------------------------------------------------------------|
 | `ORDINAL`     | Cast tag to `sz`; select member by 0-based index. Used automatically for non-enum tags.           |
 | `DESCRIPTION` | Switch on the enum value itself; union member names uppercased must match enum value names.        |
-| `FIELD`       | Switch on `tag.field_name` (a `String`); must equal the union member name exactly.                |
+| `FIELD`       | Switch on `tag.<field>` (a `String`); value must equal the union member name exactly.              |
 
-**Three output patterns:**
+**`DFieldUnionUnmapped` options (used as `.tagged = { .unmapped.as = ... }`):**
+
+| Option | Type         | Serialize behavior             | Deserialize behavior              |
+|--------|--------------|--------------------------------|-----------------------------------|
+| `.as = ERROR`        | (default)  | Raise `UNMAPPED_UNION_VARIANT` | Raise `UNMAPPED_UNION_VARIANT`    |
+| `.as = EMPTY_STRUCT` |            | Write `{}` (empty object)      | Consume next value as `Object*`   |
+| `.as = NULL`         |            | Write `null`                   | Consume next value as `Maybe{int}`|
+| `.as = ZERO`         |            | Write `0`                      | Consume next value as `int`       |
+
+**Five output patterns:**
 
 *Pattern A — named union field, not inlined (active member wrapped in a nested object):*
 
 ```c3
+$expand(derive(Message::name, dessert));
 struct Message {
   int kind;
-  union payload @DField({ .tagged = { .by = "kind" } }) {
+  union payload @DField({ .tagged.by = "kind" }) {
     int    count;
     double ratio;
     String text;
@@ -215,9 +232,10 @@ struct Message {
 *Pattern B — anonymous union field (active member flattened into parent):*
 
 ```c3
+$expand(derive(Message::name, dessert));
 struct Message {
   int kind;
-  union @DField({ .tagged = { .by = "kind" } }) {
+  union @DField({ .tagged.by = "kind" }) {
     int    count;
     double ratio;
     String text;
@@ -236,6 +254,7 @@ union Variant {
   String label;
 }
 
+$expand(derive(Response::name, dessert));
 struct Response {
   int     tag;
   Variant val @DField({ .tagged = { .by = "tag", .inlined = true } });
@@ -244,15 +263,16 @@ struct Response {
 // tag=1 → {"tag":1,"val":{"x":1,"y":2}}
 ```
 
-*Pattern D — enum tag with `match_by = DESCRIPTION` (match by enum value name):*
+*Pattern D — enum tag with `match.by = DESCRIPTION` (match by enum value name):*
 
 ```c3
-enum Shape { CIRCLE, SQUARE, TRIANGLE }
 $expand(derive(Shape::name, dessert));
+enum Shape { CIRCLE, SQUARE, TRIANGLE }
 
+$expand(derive(Drawing::name, dessert));
 struct Drawing {
   Shape kind;
-  union payload @DField({ .tagged = { .by = "kind", .inlined = true, .match_by = DESCRIPTION } }) {
+  union payload @DField({ .tagged = { .by = "kind", .inlined = true, .match.by = DESCRIPTION } }) {
     int    circle;    // matched by enum value CIRCLE
     double square;    // matched by enum value SQUARE
     String triangle;  // matched by enum value TRIANGLE
@@ -260,20 +280,35 @@ struct Drawing {
 }
 ```
 
-*Pattern E — enum tag with `match_by = FIELD` (match by enum associated String field):*
+*Pattern E — enum tag with `match.by = FIELD` (match by enum associated String field):*
 
 ```c3
+$expand(derive(Format::name, dessert));
 enum Format : (String mime) {
   JSON_FMT { "json_fmt" },
   CSV_FMT  { "csv_fmt"  },
 }
-$expand(derive(Format::name, dessert));
 
+$expand(derive(Output::name, dessert));
 struct Output {
   Format kind;
-  union payload @DField({ .tagged = { .by = "kind", .inlined = true, .match_by = FIELD, .field = "mime" } }) {
+  union payload @DField({ .tagged = { .by = "kind", .inlined = true, .match = { .by = FIELD, .field = "mime" } } }) {
     int    json_fmt;  // matched when kind.mime == "json_fmt"
     String csv_fmt;   // matched when kind.mime == "csv_fmt"
+  }
+}
+```
+
+*Using `unmapped.as` to handle unknown tag values gracefully:*
+
+```c3
+$expand(derive(Request::name, dessert));
+struct Request {
+  int kind;
+  // Out-of-range kind consumed as null instead of raising a fault
+  union payload @DField({ .tagged = { .by = "kind", .inlined = true, .unmapped.as = NULL } }) {
+    int    ping;
+    String text;
   }
 }
 ```
@@ -533,7 +568,9 @@ Dessert uses C3's fault system for error handling:
 
 2. **Use skip for sensitive data**: Mark fields that shouldn't be serialized (e.g., passwords) with `.skip = true`.
 
-3. **Tag fields before union fields**: When deserializing tagged unions, the tag field must appear before the union field in the JSON input. If using `@DUnion({ .inlined = true })`, the tag must also appear first in the wire format to avoid `INLINED_UNION_BEFORE_TAG`.
+3. **Tag fields before union fields**: When deserializing tagged unions, the tag field must appear before the union field in the JSON input. If using `.inlined = true`, the tag must appear first in the wire format to avoid `INLINED_UNION_BEFORE_TAG`.
+
+4. **Handle unmapped union variants**: By default, a tag value that doesn't match any union member raises `UNMAPPED_UNION_VARIANT`. Use `.unmapped = { .as = NULL }` (or `EMPTY_STRUCT` / `ZERO`) on the union field to handle gracefully instead.
 
 ## Roadmap
 
