@@ -75,7 +75,6 @@ def recv(proc) -> dict | None:
 def cmd_initialize(proc, _args=None):
     send(proc, {
         "jsonrpc": "2.0",
-        "id": next_id(),
         "method": "initialize",
         "params": {
             "processId": os.getpid(),
@@ -83,6 +82,7 @@ def cmd_initialize(proc, _args=None):
             "rootUri": None,
             "workspaceFolders": [],
         },
+        "id": next_id(),
     })
     recv(proc)
     # send initialized notification (no response expected)
