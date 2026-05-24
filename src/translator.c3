@@ -22,18 +22,11 @@ struct LspMessage
 	MessageParams params @DField({ .tagged = { .by = "method", .inlined = true, .unmapped.as = EMPTY_STRUCT } });
 	Allocator allocator @DField({ .skip = true });
   	Maybe{int} id;
-	// Object contents;
 }
-
-// fn bool LspMessage.is_initialized(self) @inline => self.contents != null;
 
 fn void LspMessage.free(&self)
 {
 	self.rpc.free(self.allocator);
-	// if (self.contents != null)
-	// { 
-		// self.contents.free();
-	// }
 }
 
 <*
@@ -101,6 +94,32 @@ macro IoDecodeResult? decode(Allocator allocator, String message)
 	}
 
 	String json_message = split[1][:content_length];
+	
+	sz method_idx = json_message.index_of("\"method\":")!!;
+	sz params_idx = json_message.index_of("\"params\":")!!;
+	// if the method is after the params, we move it at the start of the json string
+	// so it can be deserialized properly
+	if (method_idx > params_idx)
+	{
+		method_idx = json_message.rindex_of("\"method\":")!!;
+		int method_len = 9; // len of "method":
+		int quote_count = 0;
+		bool has_comma = false;
+		while (quote_count != 2)
+		{
+			if (json_message[method_idx + method_len] == '"') quote_count++;
+			method_len++;
+		}
+		has_comma = json_message[method_idx + method_len] == ',';
+
+		String method = json_message[method_idx:method_len];
+
+		json_message = string::tformat(
+			"{%s,%s%s", 
+			method, 
+			json_message[1..method_idx - 2], json_message[method_idx + method_len..]
+		);
+	}
 
 	LspMessage? lsp_message = des::deserialize{LspMessage}(&&json::debug_deserializer(json_message));
 	if (catch err = lsp_message)
