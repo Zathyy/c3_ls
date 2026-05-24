@@ -66,7 +66,7 @@ fn void provide_keywords(Context* ctx, List{CompletionItem}* items)
         if (ctx.prefix.len == 0 || $kw.name.starts_with(ctx.prefix))
         {
             items.push((CompletionItem){
-                .label = $kw.name.copy(ctx.allocator),
+                .label = $kw.name,
                 .documentation = $kw.docs,
                 .kind = KEYWORD,
             });
