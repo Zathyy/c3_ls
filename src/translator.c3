@@ -104,19 +104,15 @@ macro IoDecodeResult? decode(Allocator allocator, String message)
 		method_idx = json_message.rindex_of("\"method\":")!!;
 		int method_len = 9; // len of "method":
 		int quote_count = 0;
-		bool has_comma = false;
 		while (quote_count != 2)
 		{
 			if (json_message[method_idx + method_len] == '"') quote_count++;
 			method_len++;
 		}
-		has_comma = json_message[method_idx + method_len] == ',';
-
-		String method = json_message[method_idx:method_len];
 
 		json_message = string::tformat(
 			"{%s,%s%s", 
-			method, 
+			json_message[method_idx:method_len], 
 			json_message[1..method_idx - 2], json_message[method_idx + method_len..]
 		);
 	}
