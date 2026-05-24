@@ -75,13 +75,13 @@ def recv(proc) -> dict | None:
 def cmd_initialize(proc, _args=None):
     send(proc, {
         "jsonrpc": "2.0",
-        "method": "initialize",
         "params": {
             "processId": os.getpid(),
             "clientInfo": {"name": "lsp_client.py", "version": "0.1.0"},
             "rootUri": None,
             "workspaceFolders": [],
         },
+        "method": "initialize",
         "id": next_id(),
     })
     recv(proc)

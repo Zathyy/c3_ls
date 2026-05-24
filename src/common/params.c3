@@ -27,6 +27,8 @@ enum MessageKind : char (String name) @DEnum({ .as = FIELD, .field = "name" })
 	RENAME       { "textDocument/rename" },
 	SHUTDOWN     { "shutdown" },
 	EXIT         { "exit" },
+	CANCEL       { "$/cancelRequest" },
+	SET_TRACE    { "$/setTrace" },
 }
 
 union MessageParams
@@ -37,6 +39,8 @@ union MessageParams
 	DidCloseParams did_close;
 	HoverParams hover;
 	CompletionParams completion;
+	CancelParams cancel;
+	SetTraceParams set_trace;
 }
 
 $expand(derive(InitializeParams::name, dessert));
@@ -82,4 +86,16 @@ struct CompletionParams
 	DocumentUri text_document;
 	LspPosition position;
 	CompletionContext context;
+}
+
+$expand(derive(CancelParams::name, dessert));
+struct CancelParams
+{
+	String id;
+}
+
+$expand(derive(SetTraceParams::name, dessert));
+struct SetTraceParams
+{
+	TraceKind value;
 }

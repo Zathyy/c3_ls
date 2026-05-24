@@ -102,7 +102,7 @@ macro IoDecodeResult? decode(Allocator allocator, String message)
 	if (method_idx > params_idx)
 	{
 		method_idx = json_message.rindex_of("\"method\":")!!;
-		int method_len = 9; // len of "method":
+		int method_len = "\"method\":".len;
 		int quote_count = 0;
 		while (quote_count != 2)
 		{
