@@ -80,6 +80,43 @@ fn bool has_input() @if(env::WIN32)
 *>
 fn LspMessage? read(Allocator allocator, String message = {})
 {
+	if (message == {} && prev_buffer.len > 0)
+    {
+        // Check if our leftover buffer already contains a complete message
+        IoDecodeResult? backlog_decode = translator::decode(allocator, prev_buffer);
+        if (catch err = backlog_decode)
+        {
+			switch (err)
+            {
+                case translator::INCOMPLETE_JSON:
+                    break;
+                case translator::INVALID_MESSAGE:
+                    log::warn("Wiping corrupted stream backlog chunk to prevent deadlocks.");
+                    mem::free(prev_buffer);
+                    prev_buffer = {};
+                    break;
+                default:
+                    log::verbose("Backlog check returned unhandled status: %s", err);
+            }
+        }
+		else
+		{
+			log::verbose("Draining backlogged message directly from memory buffer (%d bytes remaining)", prev_buffer.len - backlog_decode.len);
+            
+            char* pbptr = prev_buffer;
+            defer mem::free(pbptr);
+
+            if (backlog_decode.len < prev_buffer.len)
+            {
+                prev_buffer = (String)alloc::clone_slice(mem, (char[])prev_buffer[backlog_decode.len..]);
+            }
+            else
+            {
+                prev_buffer = {};
+            }
+            return backlog_decode.message;
+		}
+    }
 	char[] read_buffer;
 	if (message != {})
 	{

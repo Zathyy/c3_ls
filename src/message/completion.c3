@@ -32,10 +32,15 @@ struct LspCompletionResponse @DStruct({ .rename_all = CAMEL_CASE })
 
 fn void response(Allocator allocator, LspProject* project, LspMessage* message)
 {
-	Uri? file_uri = uri::parse(tmem, message.params.completion.text_document);
-	if (catch err = file_uri) return;
+	log::info("URI: %s", message.params.completion.text_document.uri);
+	Uri? file_uri = uri::parse(tmem, message.params.completion.text_document.uri);
+	if (catch err = file_uri)
+	{
+		log::error("Failed to parse uri: %s", err);
+		return;
+	}
 	LspPosition pos = message.params.completion.position;
-
+ 
     CompletionItem[]? items = completion::resolve(project, file_uri, pos);
 
 	LspCompletionResponse response = {

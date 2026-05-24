@@ -81,9 +81,12 @@ struct HoverParams
 }
 
 $expand(derive(CompletionParams::name, dessert));
-struct CompletionParams
+struct CompletionParams @DStruct({ .rename_all = CAMEL_CASE })
 {
-	DocumentUri text_document;
+	struct text_document 
+	{
+		String uri;
+	}
 	LspPosition position;
 	CompletionContext context;
 }

@@ -74,7 +74,6 @@ macro IoDecodeResult? decode(Allocator allocator, String message)
 	String[] split = message.split(tmem, ESCAPE);
 	if (split.len < 2)
 	{
-		log::verbose("failed to split message %s", message);
 		return INCOMPLETE_JSON~;
 	}
 
@@ -83,7 +82,6 @@ macro IoDecodeResult? decode(Allocator allocator, String message)
 	ulong content_length;
 	if (catch @try(content_length, content_length_str.to_ulong()))
 	{
-		log::verbose("failed to read content length");
 		return INCOMPLETE_JSON~;
 	}
 	usz message_len = header.len + ESCAPE.len + content_length;
@@ -120,7 +118,6 @@ macro IoDecodeResult? decode(Allocator allocator, String message)
 	LspMessage? lsp_message = des::deserialize{LspMessage}(&&json::debug_deserializer(json_message));
 	if (catch err = lsp_message)
 	{
-		log::error("failed to deserialize LspMessage: %s", err);
 		return err~;
 	}
 	lsp_message.allocator = allocator;

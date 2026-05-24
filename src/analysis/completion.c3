@@ -28,6 +28,7 @@ const CompletionProvider[] PROVIDERS = {
 
 fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
 {
+	log::info("resolve");
 	Context ctx = (Context){
 		.uri = uri,
 		.position = pos,
