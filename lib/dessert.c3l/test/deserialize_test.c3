@@ -2,6 +2,7 @@ module deserialize_test;
 import std;
 import dessert;
 import json;
+import derive;
 
 // ── Test types ───────────────────────────────────────────────────────────────
 
@@ -561,14 +562,14 @@ fn void test_des_inline_substruct_roundtrip() @test {
 
 // ── Tests: union (custom serialize/deserialize) ───────────────────────────────
 
-union DUVariant @DUnion({ .inlined = true }) {
+union DUVariant {
   long i;
   double f;
 }
 
 struct DTaggedUnion {
-  int      tag;
-  DUVariant val @DField({ .tagged_by = "tag"});
+  int       tag;
+  DUVariant val @DField({ .tagged = { .by = "tag", .inlined = true } });
 }
 fn void? DTaggedUnion.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
 fn void? DTaggedUnion.deserialize(&self, Deserializer deserializer) => des::impl_deserialize(self, deserializer);
@@ -601,7 +602,7 @@ fn void test_des_union_roundtrip() @test {
 
 struct DDUnionNamed {
   int kind;
-  union p @DField({ .tagged_by = "kind" }) {
+  union p @DField({ .tagged = { .by = "kind" } }) {
     int    first;
     double second;
     String third;
@@ -661,7 +662,7 @@ fn void test_des_dunion_named_roundtrip_second() @test {
 
 struct DDUnionAnon {
   int kind;
-  union @DField({ .tagged_by = "kind" }) {
+  union @DField({ .tagged = { .by = "kind" } }) {
     int    foo;
     double bar;
   }
@@ -708,6 +709,146 @@ fn void test_des_dunion_anon_roundtrip_second() @test {
   double diff = copy.bar - 7.25;
   if (diff < 0) diff = -diff;
   assert(diff < 1e-9);
+}
+
+// ── Tests: tagged union match_by = ORDINAL (enum tag) ────────────────────────
+// Named inlined union: JSON key is the union field name ("payload");
+// value is the active member's value directly. kind serialized as ordinal int.
+
+$expand(derive(DMBOrdinalTag::name, dessert));
+enum DMBOrdinalTag { ORD_FIRST, ORD_SECOND, ORD_THIRD }
+
+struct DMatchByOrdinal {
+  DMBOrdinalTag kind;
+  union payload @DField({ .tagged = { .by = "kind", .inlined = true, .match_by = ORDINAL } }) {
+    int    first;    // selected when kind ordinal == 0 (ORD_FIRST)
+    double second;   // selected when kind ordinal == 1 (ORD_SECOND)
+    String third;    // selected when kind ordinal == 2 (ORD_THIRD)
+  }
+}
+fn void? DMatchByOrdinal.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
+fn void? DMatchByOrdinal.deserialize(&self, Deserializer deserializer) => des::impl_deserialize(self, deserializer);
+
+fn void test_des_match_by_ordinal_first() @test {
+  // ORD_FIRST (ordinal 0) → member[0] = first; payload value read at "payload" key
+  const String JSON = `{"kind": "ORD_FIRST", "payload": 10}`;
+  DMatchByOrdinal v = des::deserialize{DMatchByOrdinal}(&&json::deserializer(JSON))!!;
+  assert(v.kind == DMBOrdinalTag.ORD_FIRST);
+  assert(v.payload.first == 10);
+}
+
+fn void test_des_match_by_ordinal_second() @test {
+  const String JSON = `{"kind": "ORD_SECOND", "payload": 2.5}`;
+  DMatchByOrdinal v = des::deserialize{DMatchByOrdinal}(&&json::deserializer(JSON))!!;
+  assert(v.kind == DMBOrdinalTag.ORD_SECOND);
+  double diff = v.payload.second - 2.5;
+  if (diff < 0) diff = -diff;
+  assert(diff < 1e-9);
+}
+
+fn void test_des_match_by_ordinal_roundtrip() @test {
+  DMatchByOrdinal orig = { .kind = ORD_THIRD, .payload = { .third = "roundtrip" } };
+  JsonSerializer s = json::serializer();
+  JsonValue j = ser::serialize(&s, orig)!!;
+  defer j.free();
+
+  DMatchByOrdinal copy = des::deserialize{DMatchByOrdinal}(&&json::deserializer(j.to_string()!!))!!;
+  assert(copy.kind == DMBOrdinalTag.ORD_THIRD);
+  assert(copy.payload.third == "roundtrip");
+}
+
+// ── Tests: tagged union match_by = DESCRIPTION (enum tag) ────────────────────
+// DESCRIPTION: switch on enum VALUE. Union member names uppercased must match
+// enum value names. E.g. member "desc_a" → @str_to_upper → "DESC_A" → case DESC_A.
+
+$expand(derive(DMBDescTag::name, dessert));
+enum DMBDescTag { DESC_A, DESC_B, DESC_C }
+
+struct DMatchByDesc {
+  DMBDescTag kind;
+  union payload @DField({ .tagged = { .by = "kind", .inlined = true, .match_by = DESCRIPTION } }) {
+    int    desc_a;   // @str_to_upper("desc_a") = "DESC_A" → case DESC_A
+    double desc_b;   // → case DESC_B
+    String desc_c;   // → case DESC_C
+  }
+}
+fn void? DMatchByDesc.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
+fn void? DMatchByDesc.deserialize(&self, Deserializer deserializer) => des::impl_deserialize(self, deserializer);
+
+fn void test_des_match_by_desc_first() @test {
+  const String JSON = `{"kind": "DESC_A", "payload": 42}`;
+  DMatchByDesc v = des::deserialize{DMatchByDesc}(&&json::deserializer(JSON))!!;
+  assert(v.kind == DMBDescTag.DESC_A);
+  assert(v.payload.desc_a == 42);
+}
+
+fn void test_des_match_by_desc_second() @test {
+  const String JSON = `{"kind": "DESC_B", "payload": 9.9}`;
+  DMatchByDesc v = des::deserialize{DMatchByDesc}(&&json::deserializer(JSON))!!;
+  assert(v.kind == DMBDescTag.DESC_B);
+  double diff = v.payload.desc_b - 9.9;
+  if (diff < 0) diff = -diff;
+  assert(diff < 1e-9);
+}
+
+fn void test_des_match_by_desc_roundtrip() @test {
+  DMatchByDesc orig = { .kind = DMBDescTag.DESC_C, .payload = { .desc_c = "desc" } };
+  JsonSerializer s = json::serializer();
+  JsonValue j = ser::serialize(&s, orig)!!;
+  defer j.free();
+
+  DMatchByDesc copy = des::deserialize{DMatchByDesc}(&&json::deserializer(j.to_string()!!))!!;
+  assert(copy.kind == DMBDescTag.DESC_C);
+  assert(copy.payload.desc_c == "desc");
+}
+
+// ── Tests: tagged union match_by = FIELD (enum with String associated field) ──
+// FIELD: switch on enum.variant (String). Value must equal union member name exactly.
+// E.g. FLD_A { "fld_a" } → kind.variant == "fld_a" → case "fld_a" → member fld_a.
+
+$expand(derive(DMBFieldTag::name, dessert));
+enum DMBFieldTag : (String variant) {
+  FLD_A { "fld_a" },
+  FLD_B { "fld_b" },
+  FLD_C { "fld_c" },
+}
+
+struct DMatchByField {
+  DMBFieldTag kind;
+  union payload @DField({ .tagged = { .by = "kind", .inlined = true, .match_by = FIELD, .field = "variant" } }) {
+    int    fld_a;   // matched when kind.variant == "fld_a"
+    double fld_b;   // matched when kind.variant == "fld_b"
+    String fld_c;   // matched when kind.variant == "fld_c"
+  }
+}
+fn void? DMatchByField.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
+fn void? DMatchByField.deserialize(&self, Deserializer deserializer) => des::impl_deserialize(self, deserializer);
+
+fn void test_des_match_by_field_first() @test {
+  const String JSON = `{"kind": "FLD_A", "payload": 7}`;
+  DMatchByField v = des::deserialize{DMatchByField}(&&json::deserializer(JSON))!!;
+  assert(v.kind == DMBFieldTag.FLD_A);
+  assert(v.payload.fld_a == 7);
+}
+
+fn void test_des_match_by_field_second() @test {
+  const String JSON = `{"kind": "FLD_B", "payload": 3.14}`;
+  DMatchByField v = des::deserialize{DMatchByField}(&&json::deserializer(JSON))!!;
+  assert(v.kind == DMBFieldTag.FLD_B);
+  double diff = v.payload.fld_b - 3.14;
+  if (diff < 0) diff = -diff;
+  assert(diff < 1e-9);
+}
+
+fn void test_des_match_by_field_roundtrip() @test {
+  DMatchByField orig = { .kind = DMBFieldTag.FLD_C, .payload = { .fld_c = "field" } };
+  JsonSerializer s = json::serializer();
+  JsonValue j = ser::serialize(&s, orig)!!;
+  defer j.free();
+
+  DMatchByField copy = des::deserialize{DMatchByField}(&&json::deserializer(j.to_string()!!))!!;
+  assert(copy.kind == DMBFieldTag.FLD_C);
+  assert(copy.payload.fld_c == "field");
 }
 
 fn void test_des_roundtrip_null_pointer() @test {

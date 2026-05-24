@@ -22,10 +22,28 @@ fn String? FieldAttrs.get(&self, String needle) {
   return NOT_FOUND~;
 }
 
-// struct DFieldTagConfig {
-//   <* Specify another field to be used as the tag for this field type. *>
-//   String by;
-// }
+struct DFieldUnionConfig {
+  <* Specify another field to be used as the tag for this field type. *>
+  String by;
+
+  <*
+    Inlines the value
+    *Only available for union fields*
+  *>
+  bool inlined;
+
+  <*
+    Specify the way the union variant is chosen from the tag value
+    *Only available if inlined is true and the tag field is an enum*
+  *>
+  DessertEnum match_by;
+
+  <*
+    Specify the field of the enum used to choose the union variant
+    *Only available if inlined is true and the tag field is an enum and match_by is FIELD*
+  *>
+  String field;
+}
 
 struct DFieldConfig {
   bool skip;
@@ -37,10 +55,10 @@ struct DFieldConfig {
   bool flatten;
 
   <*
-    Specify another field to be used as the tag for this field type.
+    Specify how to configure this tagged union field.
     *Only available for union fields*
   *>
-  String tagged_by;
+  DFieldUnionConfig tagged;
 }
 
 attrdef @DField(DFieldConfig config) = @tag("dessert:ser", config), @tag("dessert:des", config);
@@ -75,12 +93,12 @@ attrdef @DStruct(DStructConfig config) = @tag("dessert:ser:struct", config), @ta
 attrdef @DStructSer(DStructConfig config) = @tag("dessert:ser:struct", config);
 attrdef @DStructDes(DStructConfig config) = @tag("dessert:des:struct", config);
 
-struct DUnionConfig {
-  bool inlined;
-}
-attrdef @DUnion(DUnionConfig config) = @tag("dessert:ser:union", config), @tag("dessert:des:union", config);
-attrdef @DUnionSer(DUnionConfig config) = @tag("dessert:ser:union", config);
-attrdef @DUnionDes(DUnionConfig config) = @tag("dessert:des:union", config);
+// struct DUnionConfig {
+//   bool inlined;
+// }
+// attrdef @DUnion(DUnionConfig config) = @tag("dessert:ser:union", config), @tag("dessert:des:union", config);
+// attrdef @DUnionSer(DUnionConfig config) = @tag("dessert:ser:union", config);
+// attrdef @DUnionDes(DUnionConfig config) = @tag("dessert:des:union", config);
 
 // Old, deprecated attributes
 attrdef @Dessert(DFieldConfig config) @deprecated("Use @DField instead") = @tag("dessert:ser", config), @tag("dessert:des", config);

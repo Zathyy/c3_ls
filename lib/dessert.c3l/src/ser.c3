@@ -41,7 +41,7 @@ interface Serializer {
   // fn void? serialize_float128(float128 f) @optional @if($defined(float128));
 }
 
-faultdef VALIDATOR_ERROR;
+faultdef VALIDATOR_ERROR, UNMAPPED_UNION_VARIANT;
 
 // Should be treated as a protocol, don't derive it directly
 interface Serializable {
@@ -191,34 +191,86 @@ macro @impl_serialize_value($Type, s, Serializer serializer, $config) @local {
 }
 
 macro @impl_serialize_union($UType, s, Serializer serializer, $member, DFieldConfig $config, DStructConfig $struct_config) @local {
-  DUnionConfig $union_config = @get_tag($UType, "dessert:ser:union", (DUnionConfig) {});
-  $if $config.tagged_by.len == 0:
+  $if $config.tagged.by.len == 0:
     $error @sprintf("Unions must be tagged by another field's value (member %s with type %s)", $member.name, $UType::name);
   $endif
 
-  $if $config.flatten &&& $union_config.inlined:
+  $if $config.flatten &&& $config.tagged.inlined:
     $error @sprintf("A field cannot be inlined and flatten. (%s)", $member.name);
   $endif
 
-  $if $union_config.inlined:
+  $if $config.tagged.inlined:
     $config = { ...$config, .flatten = true };
   $endif
 
-  var tag_value = s.$eval($config.tagged_by);
-  var $the_switch = "switch ((sz) tag_value) {";
+  var tag_value = s.$eval($config.tagged.by);
 
-  $foreach $i, $m : $UType::members:
-    $the_switch +++= @sprintf("case %s:\n", $i);
-    $if $union_config.inlined:
-      $the_switch +++= @sprintf("@impl_serialize_value($UType::members[%s].type, $UType::members[%s].get($member.get(*s)), serializer, $config)!;\n", $i, $i);
-    $else
-      $the_switch +++= @sprintf("@serialize_field(serializer, $config, &$member.get(*s), $UType::members[%s], $struct_config)!;\n", $i);
-    $endif
-  $endforeach
+  var $the_switch = "";
 
-  $the_switch +++= "}";
+  $switch:
+    $case $config.tagged.match_by == ORDINAL ||| $Typeof(tag_value)::kind != ENUM:
+      $the_switch = "switch ((sz) tag_value) {";
 
-  bool $is_flatten = $union_config.inlined ||| $member.name.len == 0;
+      $foreach $i, $m : $UType::members:
+        $the_switch +++= @sprintf("case %s:\n", $i);
+        $if $config.tagged.inlined:
+          $the_switch +++= @sprintf("@impl_serialize_value($UType::members[%s].type, $UType::members[%s].get($member.get(*s)), serializer, $config)!;\n", $i, $i);
+        $else
+          $the_switch +++= @sprintf("@serialize_field(serializer, $config, &$member.get(*s), $UType::members[%s], $struct_config)!;\n", $i);
+        $endif
+      $endforeach
+      $the_switch +++= "default: return UNMAPPED_UNION_VARIANT~;";
+
+      $the_switch +++= "}";
+
+    $case $config.tagged.match_by == DESCRIPTION:
+      $the_switch = "switch (tag_value) {";
+
+      $foreach $i, $m : $UType::members:
+        $the_switch +++= @sprintf("case %s:\n", utils::@str_to_upper($m.name));
+        $if $config.tagged.inlined:
+          $the_switch +++= @sprintf("@impl_serialize_value($UType::members[%s].type, $UType::members[%s].get($member.get(*s)), serializer, $config)!;\n", $i, $i);
+        $else
+          $the_switch +++= @sprintf("@serialize_field(serializer, $config, &$member.get(*s), $UType::members[%s], $struct_config)!;\n", $i);
+        $endif
+      $endforeach
+
+      $the_switch +++= "default: return UNMAPPED_UNION_VARIANT~;";
+
+      $the_switch +++= "}";
+
+    $case $config.tagged.match_by == FIELD:
+      var $field_name = $config.tagged.field;
+      $if $field_name.len == 0:
+        $error "While serializing a tagged union: When the 'tagged.match_by' attribute is set to 'FIELD', 'field' must be provided with the name of an associated field of the enum.";
+      $endif
+
+      $if !$defined(tag_value.$field_name):
+        $error @sprintf("Enum %s doesn't have field '%s'", $Typeof(tag_value)::name, $field_name);
+      $endif
+
+      $if $Typeof(tag_value.$field_name) != String:
+        $error @sprintf("To be used as a union variant matcher, the field must be an string (was '%s')", $field_name);
+      $endif
+
+      $the_switch = @sprintf("switch (tag_value.%s) {", $field_name);
+
+      $foreach $i, $m : $UType::members:
+        $the_switch +++= @sprintf("case \"%s\":\n", $m.name);
+        $if $config.tagged.inlined:
+          $the_switch +++= @sprintf("@impl_serialize_value($UType::members[%s].type, $UType::members[%s].get($member.get(*s)), serializer, $config)!;\n", $i, $i);
+        $else
+          $the_switch +++= @sprintf("@serialize_field(serializer, $config, &$member.get(*s), $UType::members[%s], $struct_config)!;\n", $i);
+        $endif
+      $endforeach
+
+      $the_switch +++= "default: return UNMAPPED_UNION_VARIANT~;";
+
+      $the_switch +++= "}";
+
+  $endswitch
+
+  bool $is_flatten = $config.tagged.inlined ||| $member.name.len == 0;
   $if !$is_flatten:
     serializer.struct_start($member.type.name)!;
   $endif
@@ -228,6 +280,7 @@ macro @impl_serialize_union($UType, s, Serializer serializer, $member, DFieldCon
   $if !$is_flatten:
     serializer.struct_end($member.type.name)!;
   $endif
+
 }
 
 
@@ -307,9 +360,9 @@ macro serialize_value(serializer, value, $config) {
 *>
 macro impl_serialize_enum(s, serializer) @local {
   var $type = $Typeof(s)::inner;
-  var $config = $type.has_tag("dessert:ser:enum") ??? $type.get_tag("dessert:ser:enum") : (DEnumConfig) {};
+  var $enum_config = $type.has_tag("dessert:ser:enum") ??? $type.get_tag("dessert:ser:enum") : (DEnumConfig) {};
 
-  $switch $config.as:
+  $switch $enum_config.as:
     $case DESCRIPTION:
       return serialize_value(serializer, s.description, (DFieldConfig) {});
 
@@ -317,7 +370,7 @@ macro impl_serialize_enum(s, serializer) @local {
       return serialize_value(serializer, s.ordinal, (DFieldConfig) {});
 
     $case FIELD:
-      var $field_name = $config.field;
+      var $field_name = $enum_config.field;
       $if $field_name.len == 0:
         $error "While serializing an enum: When the 'as' attribute is set to 'FIELD', 'field' must be provided with the name of an associated field of the enum.";
       $endif

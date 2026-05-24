@@ -509,14 +509,14 @@ fn void test_ser_inline_substruct_flatten() @test {
 
 // ── Tests: union (custom serialize) ──────────────────────────────────────────
 
-union SUVariant @DUnion({ .inlined = true }) {
+union SUVariant {
   long i;
   double f;
 }
 
 struct STaggedUnion {
-  int      tag;
-  SUVariant val @DField({ .tagged_by = "tag" });
+  int       tag;
+  SUVariant val @DField({ .tagged = { .by = "tag", .inlined = true } });
 }
 fn void? STaggedUnion.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
 
@@ -545,8 +545,8 @@ fn void test_ser_union_negative_value() @test {
 
 struct SDUnionNamed {
   int kind;
-  union p @DField({ .tagged_by = "kind" }) {
-    int   first;
+  union p @DField({ .tagged = { .by = "kind" } }) {
+    int    first;
     double second;
     String third;
   }
@@ -612,7 +612,7 @@ fn void test_ser_dunion_named_only_active_member() @test {
 
 struct SDUnionAnon {
   int kind;
-  union @DField({ .tagged_by = "kind" }) {
+  union @DField({ .tagged = { .by = "kind" } }) {
     int    foo;
     double bar;
   }
@@ -671,6 +671,176 @@ fn void test_ser_camel_case() @test {
   assert(j.value.d.get("firstName")!!.value.s == "John");
   assert(j.value.d.get("lastName")!!.value.s == "Doe");
   assert(j.value.d.get("birthYear")!!.value.i == 1990);
+}
+
+// ── Tests: tagged union match_by = ORDINAL (enum tag) ────────────────────────
+// ORDINAL: enum ordinal (0-based) selects the active union member by index.
+// Tag enum serializes as its description string (default). Named inlined union:
+// JSON key = union field name ("payload"), value = active member value directly.
+
+$expand(derive(SMBOrdinalTag::name, dessert));
+enum SMBOrdinalTag { ORD_FIRST, ORD_SECOND, ORD_THIRD }
+
+struct SMatchByOrdinal {
+  SMBOrdinalTag kind;
+  union payload @DField({ .tagged = { .by = "kind", .inlined = true, .match_by = ORDINAL } }) {
+    int    first;    // selected when kind ordinal == 0 (ORD_FIRST)
+    double second;   // selected when kind ordinal == 1 (ORD_SECOND)
+    String third;    // selected when kind ordinal == 2 (ORD_THIRD)
+  }
+}
+fn void? SMatchByOrdinal.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
+
+fn void test_ser_match_by_ordinal_first() @test {
+  // ORD_FIRST (ordinal 0) → member[0] = first; output: {"kind":"ORD_FIRST","payload":10}
+  SMatchByOrdinal s = { .kind = ORD_FIRST, .payload = { .first = 10 } };
+  JsonSerializer js = json::serializer();
+  JsonValue j = ser::serialize(&js, s)!!;
+  defer j.free();
+
+  assert(j.value.d.get("kind")!!.value.s == "ORD_FIRST");
+  assert(j.value.d.get("payload")!!.kind == JsonValueKind.INT);
+  assert(j.value.d.get("payload")!!.value.i == 10);
+}
+
+fn void test_ser_match_by_ordinal_second() @test {
+  // ORD_SECOND (ordinal 1) → member[1] = second; output: {"kind":"ORD_SECOND","payload":2.5}
+  SMatchByOrdinal s = { .kind = ORD_SECOND, .payload = { .second = 2.5 } };
+  JsonSerializer js = json::serializer();
+  JsonValue j = ser::serialize(&js, s)!!;
+  defer j.free();
+
+  assert(j.value.d.get("kind")!!.value.s == "ORD_SECOND");
+  assert(j.value.d.get("payload")!!.kind == JsonValueKind.FLOAT);
+  double diff = j.value.d.get("payload")!!.value.f - 2.5;
+  if (diff < 0) diff = -diff;
+  assert(diff < 1e-9);
+}
+
+fn void test_ser_match_by_ordinal_third() @test {
+  // ORD_THIRD (ordinal 2) → member[2] = third; output: {"kind":"ORD_THIRD","payload":"hello"}
+  SMatchByOrdinal s = { .kind = ORD_THIRD, .payload = { .third = "hello" } };
+  JsonSerializer js = json::serializer();
+  JsonValue j = ser::serialize(&js, s)!!;
+  defer j.free();
+
+  assert(j.value.d.get("kind")!!.value.s == "ORD_THIRD");
+  assert(j.value.d.get("payload")!!.kind == JsonValueKind.STRING);
+  assert(j.value.d.get("payload")!!.value.s == "hello");
+}
+
+// ── Tests: tagged union match_by = DESCRIPTION (enum tag) ────────────────────
+// DESCRIPTION: switch on enum VALUE. Union member names uppercased must match
+// enum value names. E.g. member "desc_a" → @str_to_upper → "DESC_A" → case DESC_A.
+
+$expand(derive(SMBDescTag::name, dessert));
+enum SMBDescTag { DESC_A, DESC_B, DESC_C }
+
+struct SMatchByDesc {
+  SMBDescTag kind;
+  union payload @DField({ .tagged = { .by = "kind", .inlined = true, .match_by = DESCRIPTION } }) {
+    int    desc_a;   // @str_to_upper("desc_a") = "DESC_A" → case DESC_A
+    double desc_b;   // → case DESC_B
+    String desc_c;   // → case DESC_C
+  }
+}
+fn void? SMatchByDesc.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
+
+fn void test_ser_match_by_desc_first() @test {
+  // DESC_A → case DESC_A → member desc_a; output: {"kind":"DESC_A","payload":42}
+  SMatchByDesc s = { .kind = DESC_A, .payload = { .desc_a = 42 } };
+  JsonSerializer js = json::serializer();
+  JsonValue j = ser::serialize(&js, s)!!;
+  defer j.free();
+
+  assert(j.value.d.get("kind")!!.value.s == "DESC_A");
+  assert(j.value.d.get("payload")!!.kind == JsonValueKind.INT);
+  assert(j.value.d.get("payload")!!.value.i == 42);
+}
+
+fn void test_ser_match_by_desc_second() @test {
+  // DESC_B → case DESC_B → member desc_b; output: {"kind":"DESC_B","payload":9.9}
+  SMatchByDesc s = { .kind = DESC_B, .payload = { .desc_b = 9.9 } };
+  JsonSerializer js = json::serializer();
+  JsonValue j = ser::serialize(&js, s)!!;
+  defer j.free();
+
+  assert(j.value.d.get("kind")!!.value.s == "DESC_B");
+  assert(j.value.d.get("payload")!!.kind == JsonValueKind.FLOAT);
+  double diff = j.value.d.get("payload")!!.value.f - 9.9;
+  if (diff < 0) diff = -diff;
+  assert(diff < 1e-9);
+}
+
+fn void test_ser_match_by_desc_third() @test {
+  // DESC_C → case DESC_C → member desc_c; output: {"kind":"DESC_C","payload":"world"}
+  SMatchByDesc s = { .kind = DESC_C, .payload = { .desc_c = "world" } };
+  JsonSerializer js = json::serializer();
+  JsonValue j = ser::serialize(&js, s)!!;
+  defer j.free();
+
+  assert(j.value.d.get("kind")!!.value.s == "DESC_C");
+  assert(j.value.d.get("payload")!!.kind == JsonValueKind.STRING);
+  assert(j.value.d.get("payload")!!.value.s == "world");
+}
+
+// ── Tests: tagged union match_by = FIELD (enum with String associated field) ──
+// FIELD: switch on enum.variant (String). Value must equal union member name exactly.
+// E.g. FLD_A { "fld_a" } → kind.variant == "fld_a" → case "fld_a" → member fld_a.
+
+$expand(derive(SMBFieldTag::name, dessert));
+enum SMBFieldTag : (String variant) {
+  FLD_A { "fld_a" },
+  FLD_B { "fld_b" },
+  FLD_C { "fld_c" },
+}
+
+struct SMatchByField {
+  SMBFieldTag kind;
+  union payload @DField({ .tagged = { .by = "kind", .inlined = true, .match_by = FIELD, .field = "variant" } }) {
+    int    fld_a;   // matched when kind.variant == "fld_a"
+    double fld_b;   // matched when kind.variant == "fld_b"
+    String fld_c;   // matched when kind.variant == "fld_c"
+  }
+}
+fn void? SMatchByField.serialize(&self, Serializer serializer) => ser::impl_serialize(self, serializer);
+
+fn void test_ser_match_by_field_first() @test {
+  // FLD_A.variant = "fld_a" → case "fld_a" → member fld_a; output: {"kind":"FLD_A","payload":7}
+  SMatchByField s = { .kind = FLD_A, .payload = { .fld_a = 7 } };
+  JsonSerializer js = json::serializer();
+  JsonValue j = ser::serialize(&js, s)!!;
+  defer j.free();
+
+  assert(j.value.d.get("kind")!!.value.s == "FLD_A");
+  assert(j.value.d.get("payload")!!.kind == JsonValueKind.INT);
+  assert(j.value.d.get("payload")!!.value.i == 7);
+}
+
+fn void test_ser_match_by_field_second() @test {
+  // FLD_B.variant = "fld_b" → member fld_b; output: {"kind":"FLD_B","payload":3.14}
+  SMatchByField s = { .kind = FLD_B, .payload = { .fld_b = 3.14 } };
+  JsonSerializer js = json::serializer();
+  JsonValue j = ser::serialize(&js, s)!!;
+  defer j.free();
+
+  assert(j.value.d.get("kind")!!.value.s == "FLD_B");
+  assert(j.value.d.get("payload")!!.kind == JsonValueKind.FLOAT);
+  double diff = j.value.d.get("payload")!!.value.f - 3.14;
+  if (diff < 0) diff = -diff;
+  assert(diff < 1e-9);
+}
+
+fn void test_ser_match_by_field_third() @test {
+  // FLD_C.variant = "fld_c" → member fld_c; output: {"kind":"FLD_C","payload":"test"}
+  SMatchByField s = { .kind = FLD_C, .payload = { .fld_c = "test" } };
+  JsonSerializer js = json::serializer();
+  JsonValue j = ser::serialize(&js, s)!!;
+  defer j.free();
+
+  assert(j.value.d.get("kind")!!.value.s == "FLD_C");
+  assert(j.value.d.get("payload")!!.kind == JsonValueKind.STRING);
+  assert(j.value.d.get("payload")!!.value.s == "test");
 }
 
 // ── Tests: CSV ───────────────────────────────────────────────────────────────
