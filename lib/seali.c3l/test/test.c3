@@ -271,8 +271,19 @@ fn void test_both_flags_used_via_long() @test {
     assert(cli.name == "Alice");
 }
 
+fn void test_both_flags_used_via_long_eq() @test {
+    String[] args = {"prog", "--name=Alice"};
+    ShortAndLongCli cli = seali::parse(ShortAndLongCli, args)!!;
+    assert(cli.name == "Alice");
+}
+
 fn void test_both_flags_used_via_short() @test {
     String[] args = {"prog", "-n", "Bob"};
+    ShortAndLongCli cli = seali::parse(ShortAndLongCli, args)!!;
+    assert(cli.name == "Bob");
+}
+fn void test_both_flags_used_via_short_eq() @test {
+    String[] args = {"prog", "-n=Bob"};
     ShortAndLongCli cli = seali::parse(ShortAndLongCli, args)!!;
     assert(cli.name == "Bob");
 }

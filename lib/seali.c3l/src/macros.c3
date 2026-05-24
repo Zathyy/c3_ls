@@ -87,13 +87,25 @@ macro parse($Cmd, String[] _args) {
 
   int i = 0;
   while (i < args.len) {
+    String name;
+    if (try eq_idx = args[i].index_of("=")) {
+      name = args[i][..eq_idx - 1];
+      args[i] = args[i][eq_idx + 1..args[i].len-1];
+    }
     $foreach $member : $Cmd::members:
       ArgConfig $config = @setup_config($Cmd::get_tag("seali:command"), $member);
       $if !$config.skip:
         if (args[i] == "--help") print_long_about($Cmd);
         if (args[i] == "-h") print_short_about($Cmd);
 
-        if (@arg_name_matches($config, $member, args[i]) && !got_value.contains($member.name)) {
+        if (name.len > 0) {
+          if (@arg_name_matches($config, $member, name) && !got_value.contains($member.name)) {
+            args_with_values.push($member.name);
+            got_value.push($member.name);
+            i += @arg_set_value(cmd, $member, $config, args, i)!;
+            continue;
+          }
+        } else if (@arg_name_matches($config, $member, args[i]) && !got_value.contains($member.name)) {
           args_with_values.push($member.name);
           got_value.push($member.name);
           $if !($config.@is_unamed() ||| $member.type == bool):
