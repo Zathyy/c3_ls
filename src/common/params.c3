@@ -36,6 +36,7 @@ union MessageParams @DUnion({ .inlined = true })
 	DidOpenParams did_open;
 	DidCloseParams did_close;
 	HoverParams hover;
+	CompletionParams completion;
 }
 
 $expand(derive(InitializeParams::name, dessert));
