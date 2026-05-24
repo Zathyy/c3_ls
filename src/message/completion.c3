@@ -1,25 +1,75 @@
 module lsp::msg_handler::completion;
 import lsp::translator;
 import lsp::io_handler;
+import lsp::analysis;
+
+import c3_parser::workspace;
+import c3_parser::ast;
+import c3_parser::cursor;
+import c3_parser::common;
 
 import std::io;
 import std::collections::object;
 import std::collections::maybe;
+import std::collections::list;
 
 import dessert;
 import derive;
+
+import uri;
+
+<*
+    https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#completionItemKind
+*>
+constdef CompletionItemKind : int
+{
+	TEXT = 1,
+	METHOD = 2,
+	FUNCTION = 3,
+	CONSTRUCTOR = 4,
+	FIELD = 5,
+	VARIABLE = 6,
+	CLASS = 7,
+	INTERFACE = 8,
+	MODULE = 9,
+	PROPERTY = 10,
+	UNIT = 11,
+	VALUE = 12,
+	ENUM = 13,
+	KEYWORD = 14,
+	SNIPPET = 15,
+	COLOR = 16,
+	FILE = 17,
+	REFERENCE = 18,
+	FOLDER = 19,
+	ENUMMEMBER = 20,
+	CONSTANT = 21,
+	STRUCT = 22,
+	EVENT = 23,
+	OPERATOR = 24,
+	TYPEPARAMETER = 25,
+}
 
 $expand(derive(CompletionItem::name, dessert));
 struct CompletionItem 
 {
 	String label;
-	bool deprecated;
+    CompletionItemKind kind;
+    <*
+        A human-readable string with additional information
+	    about this item, like type or symbol information.
+    *>
+    String detail;
 	String documentation @DField({ .skip_if_empty = true });
+
 }
 
 $expand(derive(LspCompletionResponse::name, dessert));
 struct LspCompletionResponse
 {
+	String jsonrpc;
+	int id;
+
 	<*
 		This list is not complete. Further typing should result in recomputing
 		this list.
@@ -80,10 +130,18 @@ struct LspServerCapabilities
 	}
 }
 
-fn void response(Allocator allocator, LspMessage* message)
+fn void response(Allocator allocator, LspProject* project, LspMessage* message)
 {
+	Uri? file_uri = uri::parse(tmem, message.params.completion.text_document);
+	if (catch err = file_uri) return;
+	LspPosition pos = message.params.completion.position;
+
 	LspCompletionResponse response = {
+		.jsonrpc = message.rpc,
+		.id = message.id.get() ?? -1,
+		.is_incomplete = false,
 	};
+
 	String response_json = translator::encode(response, allocator);
 
 	log::debug("initialize response: %s", response_json);
