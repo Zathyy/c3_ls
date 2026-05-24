@@ -91,7 +91,7 @@ struct CompletionParams
 $expand(derive(CancelParams::name, dessert));
 struct CancelParams
 {
-	String id;
+	int id;
 }
 
 $expand(derive(SetTraceParams::name, dessert));
