@@ -37,8 +37,8 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
 	};
 
 	Location loc = { 
-        .line = (sz)ctx.position.line, 
-        .column = (sz)ctx.position.character 
+        .line = (sz)ctx.position.line + 1, 
+        .column = (sz)ctx.position.character + 1 
     };
 
 	List{CompletionItem} items;
@@ -48,9 +48,18 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
 
 	if (current_cursor.section != null)
     {
+		ctx.section = current_cursor.section;
         SourceFile* sf = current_cursor.section.source_file;
         uint offset = sf.line_map.get_offset(sf.source, loc);
         ctx.prefix = analysis::extract_prefix(sf.source, (sz)offset);
+    }
+    else
+    {
+        List{ModuleSection*} file_sections = ctx.ws.find_section_by_path(uri.path);
+        if (file_sections.len() > 0)
+        {
+            ctx.section = file_sections.get(0);
+        }
     }
 
 	foreach (provider : PROVIDERS)
@@ -68,26 +77,26 @@ fn void provide_global(Context* ctx, List{CompletionItem}* items)
 
     ctx.ws.modules.@each(; name, mod)
     {
-        if (name == active_mod_name) return;
-
-        foreach (sec : mod.sections)
+        if (name != active_mod_name)
         {
-            foreach (node_handle : sec.source_file.ast.top_level_nodes)
+            foreach (sec : mod.sections)
             {
-                if (node_handle < sec.start_node_idx || node_handle >= sec.end_node_idx) continue;
+                foreach (node_handle : sec.source_file.ast.top_level_nodes)
+                {
+                    if (node_handle < sec.start_node_idx || node_handle >= sec.end_node_idx) continue;
 
-                NodeKind kind = sec.source_file.ast.get_kind((Node)node_handle);
-                Cursor cursor = { sec, (Node)node_handle };
-                if (catch cursor.spelling()) continue;
-                String type_name = cursor.spelling() ?? "";
+                    NodeKind kind = sec.source_file.ast.get_kind((Node)node_handle);
+                    Cursor cursor = { sec, (Node)node_handle };
+                    String type_name = cursor.spelling() ?? "";
 
-                if (type_name.len == 0 || (ctx.prefix.len > 0 && !type_name.starts_with(ctx.prefix))) continue;
+                    if (type_name.len == 0 || (ctx.prefix.len > 0 && !type_name.starts_with(ctx.prefix))) continue;
 
-                items.push((CompletionItem){
-                    .label = type_name.copy(ctx.allocator),
-                    .kind = analysis::completion_kind_from_node(kind),
-                    .documentation = string::format(ctx.allocator, "Type declared in module '%s'", name)
-                });
+                    items.push((CompletionItem){
+                        .label = type_name.copy(ctx.allocator),
+                        .kind = analysis::completion_kind_from_node(kind),
+                        .documentation = string::format(ctx.allocator, "Type declared in module '%s'", name)
+                    });
+                }
             }
         }
     };
