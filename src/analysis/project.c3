@@ -97,7 +97,7 @@ fn void LspProject.open_file(&self, TextDocumentItem document)
 		return;
     }
 	
-	publish_diag::publish(self.allocator, parser.errors.to_tarray());
+	publish_diag::publish(self.allocator, &parser);
 }
 
 fn void LspProject.close_file(&self, DocumentUri document)
