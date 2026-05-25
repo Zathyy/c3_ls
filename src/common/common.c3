@@ -107,7 +107,7 @@ struct CompletionContext
 }
 
 $expand(derive(CompletionItem::name, dessert));
-struct CompletionItem 
+struct CompletionItem @DStruct({ .rename_all = CAMEL_CASE })
 {
 	String label;
     CompletionItemKind kind;
@@ -116,5 +116,6 @@ struct CompletionItem
 	    about this item, like type or symbol information.
     *>
     String detail;
+	String insert_text;
 	String documentation @DField({ .skip_if_empty = true });
 }

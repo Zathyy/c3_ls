@@ -86,9 +86,9 @@ fn void provide_global(Context* ctx, List{CompletionItem}* items)
                     if (node_handle < sec.start_node_idx || node_handle >= sec.end_node_idx) continue;
 
                     NodeKind kind = sec.source_file.ast.get_kind((Node)node_handle);
-
 					switch (kind)
 					{
+						case MODULE_DECL: continue;
 						case IMPORT_DECL: continue;
 						default: break;
 					}
@@ -101,6 +101,8 @@ fn void provide_global(Context* ctx, List{CompletionItem}* items)
                     items.push((CompletionItem){
                         .label = type_name.copy(ctx.allocator),
                         .kind = analysis::completion_kind_from_node(kind),
+                        .insert_text = string::format(ctx.allocator, "%s::%s", name, type_name),
+						.detail = name,
                         .documentation = string::format(ctx.allocator, "Type declared in module '%s'", name)
                     });
                 }
@@ -108,13 +110,13 @@ fn void provide_global(Context* ctx, List{CompletionItem}* items)
         }
     };
 }
-
+ 
 fn void provide_keywords(Context* ctx, List{CompletionItem}* items)
 {
     $foreach $kw : Keywords::values:
         if (ctx.prefix.len == 0 || $kw.name.starts_with(ctx.prefix))
         {
-            items.push((CompletionItem){
+            items.push({
                 .label = $kw.name,
                 .documentation = $kw.docs,
                 .kind = KEYWORD,
