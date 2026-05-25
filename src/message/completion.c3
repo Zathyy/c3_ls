@@ -14,20 +14,23 @@ import derive;
 import uri;
 
 $expand(derive(LspCompletionResponse::name, dessert));
-struct LspCompletionResponse @DStruct({ .rename_all = CAMEL_CASE })
+struct LspCompletionResponse
 {
 	String jsonrpc;
 	int id;
 
-	<*
-		This list is not complete. Further typing should result in recomputing
-		this list.
-		Recomputed lists have all their items replaced (not appended) in the
-		incomplete completion sessions.
-	*>
-	bool is_incomplete;
+	struct result 
+	{
+		<*
+			This list is not complete. Further typing should result in recomputing
+			this list.
+			Recomputed lists have all their items replaced (not appended) in the
+			incomplete completion sessions.
+		*>
+		bool is_incomplete @DField({ .rename = "isIncomplete" });
 
-	CompletionItem[] items;
+		CompletionItem[] items;
+	}
 }
 
 fn void response(Allocator allocator, LspProject* project, LspMessage* message)
@@ -43,14 +46,16 @@ fn void response(Allocator allocator, LspProject* project, LspMessage* message)
  
     CompletionItem[]? items = completion::resolve(project, file_uri, pos);
 
-	LspCompletionResponse response = {
+	LspCompletionResponse res = {
 		.jsonrpc = message.rpc,
 		.id = message.id.get() ?? -1,
-		.is_incomplete = false,
-        .items = items ?? {},
+		.result = {
+			.is_incomplete = false,
+        	.items = items ?? {},
+		}
 	};
 
-	String response_json = translator::encode(response, allocator);
+	String response_json = translator::encode(res, allocator);
 
 	log::debug("complete response: %s", response_json);
 	io_handler::write(response_json);

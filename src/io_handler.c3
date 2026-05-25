@@ -96,7 +96,6 @@ fn LspMessage? read(Allocator allocator, String message = {})
                     prev_buffer = {};
                     break;
                 default:
-                    log::verbose("Backlog check returned unhandled status: %s", err);
             }
         }
 		else

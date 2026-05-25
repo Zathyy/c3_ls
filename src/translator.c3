@@ -34,7 +34,7 @@ fn void LspMessage.free(&self)
 	@param [in] expr
 	@return "JSONRPC string allocated with `allocator`"
 *>
-macro String encode(expr, Allocator allocator, int indent = 0) => @pool()
+macro String encode(expr, Allocator allocator, int indent = 0)
 {
 	log::verbose("encoding message type %s", $Typeof(expr)::name);
 	// TODO: handle encoding error
@@ -115,7 +115,7 @@ macro IoDecodeResult? decode(Allocator allocator, String message)
 		);
 	}
 
-	LspMessage? lsp_message = des::deserialize{LspMessage}(&&json::debug_deserializer(json_message));
+	LspMessage? lsp_message = des::deserialize{LspMessage}(&&json::deserializer(json_message));
 	if (catch err = lsp_message)
 	{
 		return err~;

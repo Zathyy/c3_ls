@@ -171,7 +171,9 @@ def cmd_completion(proc, args: list[str]):
         "method": "textDocument/completion",
         "params": {
             # CompletionParams uses VERBATIM field names (no rename_all)
-            "text_document": uri,
+            "textDocument": { 
+                "uri": uri,
+            },
             "position": {"line": line_num, "character": char_num},
             "context": {
                 "trigger_kind": 1,   # CompletionTriggerKind.INVOKED

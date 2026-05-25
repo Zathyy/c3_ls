@@ -14,10 +14,13 @@ LspProject project;
 
 fn void start(CliArgs args)
 {
+	log::set_logger(&&(NullLogger){});
 	log::set_priority_all(LogPriority.VERBOSE);
 	log::info("STARTUP");
 	io_handler::init();
 	defer io_handler::quit();
+
+	
 
 	project.init(mem);
 	defer project.free();
