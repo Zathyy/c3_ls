@@ -7,7 +7,7 @@ import dessert;
 import derive;
 
 $expand(derive(MessageKind::name, dessert));
-enum MessageKind : char (String name) @DEnum({ .as = FIELD, .field = "name" })
+enum MessageKind : char (String name) @DEnum({ .as = FIELD, .field = "name", .fallback = "UNKNOWN" })
 {
 	UNKNOWN      { "unknown" },
 	INITIALIZE   { "initialize" },
@@ -74,7 +74,7 @@ enum MessageKind : char (String name) @DEnum({ .as = FIELD, .field = "name" })
 	TYPE_SUPERTYPES  { "typeHierarchy/supertypes" },
 	TYPE_SUBTYPES    { "typeHierarchy/subtypes" },
 
-	COMPLETION_RESOLVE { "completionItem/resolve" },
+	// COMPLETION_RESOLVE { "completionItem/resolve" },
 
 	SHUTDOWN     { "shutdown" },
 	EXIT         { "exit" },
@@ -181,3 +181,4 @@ struct DidChangeParams @DStruct({ .rename_all = CAMEL_CASE })
 		int version;
 	}
 }
+
