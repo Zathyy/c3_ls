@@ -101,7 +101,7 @@ $expand(derive(PublishDiagnosticsParams::name, dessert));
 struct PublishDiagnosticsParams
 {
 	DocumentUri uri;
-	Maybe{String} version @DField({ .skip_if_empty = true });
+	Maybe{int} version @DField({ .skip_if_empty = true });
 
 	LspDiagnostic[] diagnostics;
 }

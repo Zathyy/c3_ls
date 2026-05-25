@@ -55,7 +55,11 @@ def read_response(stdout) -> dict | None:
         return None
 
     body = stdout.read(content_length)
-    return json.loads(body)
+    try:
+        return json.loads(body)
+    except:
+        print(body)
+        raise
 
 
 def send(proc, obj: dict):
