@@ -150,6 +150,27 @@ def cmd_open(proc, args: list[str]):
     })
     print("[client] didOpen sent (notification, no response)")
 
+def cmd_close(proc, args: list[str]):
+    """Send textDocument/didOpen notification for a file."""
+    if args:
+        path = args[0]
+    else:
+        path = input("  File path/URI: ").strip()
+
+    uri = _path_to_uri(path)
+    fs_path = uri[len("file://"):]
+
+    # notification — no response expected
+    send(proc, {
+        "jsonrpc": "2.0",
+        "method": "textDocument/didClose",
+        "params": {
+            "textDocument": {
+                "uri": uri,
+            },
+        },
+    })
+    print("[client] didClose sent (notification, no response)")
 
 def cmd_completion(proc, args: list[str]):
     """Send textDocument/completion request and print results."""
@@ -190,6 +211,7 @@ def cmd_completion(proc, args: list[str]):
 COMMANDS = {
     "init": cmd_initialize,
     "open": cmd_open,
+    "close": cmd_close,
     "comp": cmd_completion,
     "shut": cmd_shutdown,
     "exit": cmd_shutdown,

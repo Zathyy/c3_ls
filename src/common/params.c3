@@ -77,7 +77,10 @@ struct DidOpenParams
 $expand(derive(DidCloseParams::name, dessert));
 struct DidCloseParams
 {
-	DocumentUri document @DField({ .rename = "textDocument" });
+	struct document @DField({ .rename = "textDocument" })
+	{
+		DocumentUri uri;
+	}
 }
 
 $expand(derive(HoverParams::name, dessert));

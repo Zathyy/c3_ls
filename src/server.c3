@@ -63,7 +63,7 @@ fn void dispatch(LspMessage* message)
 		case DID_OPEN:
 			project.open_file(message.params.did_open.document);
 		case DID_CLOSE:
-			project.close_file(message.params.did_close.document);
+			project.close_file(message.params.did_close.document.uri);
 		case COMPLETION:
 			completion::response(tmem, &project, message);
 		case SHUTDOWN:
