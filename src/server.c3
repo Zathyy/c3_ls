@@ -60,27 +60,20 @@ fn void dispatch(LspMessage* message)
 	{
 		case INITIALIZE:
 			initialize::response(tmem, message);
-			break;
 		case INITIALIZED:
 			log::info("received Initialized");
-			break;
 		case DID_OPEN:
 			project.open_file(message.params.did_open.document);
-			break;
 		case DID_CLOSE:
 			project.close_file(message.params.did_close.document);
-			break;
 		case COMPLETION:
 			completion::response(tmem, &project, message);
-			break;
 		case SHUTDOWN:
 			shutdown::response(tmem, message);
-			break;
 		case EXIT:
 			log::info("Exit notification received. Terminating process.");
 			running = false;
 		default:
 			log::verbose("Unhandled LSP method: %s", message.method);
-			break;
 	}
 }
