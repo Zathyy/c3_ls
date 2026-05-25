@@ -3,6 +3,7 @@ module lsp::analysis;
 import std::io;
 import std::collections::map;
 
+import lsp::msg_handler::publish_diag;
 import dessert;
 import derive;
 import c3_parser;
@@ -96,6 +97,7 @@ fn void LspProject.open_file(&self, TextDocumentItem document)
 		return;
     }
 	
+	publish_diag::publish(self.allocator, parser.errors.to_tarray());
 }
 
 fn void LspProject.close_file(&self, DocumentUri document)
