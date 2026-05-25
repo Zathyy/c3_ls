@@ -27,6 +27,11 @@ fn void start(CliArgs args)
 
 	running = true;
 
+	if (try path = args.stdlib_path.get())
+	{
+		process_stdlib(path);
+	}
+
 	loop();
 }
 
@@ -76,4 +81,18 @@ fn void dispatch(LspMessage* message)
 		default:
 			log::verbose("Unhandled LSP method: %s", message.method);
 	}
+}
+
+fn void process_stdlib(String std_path)
+{
+	Path path = path::tnew(std_path)!!;
+	PathWalker walker = fn bool? (Path p, bool is_dir, void* data)
+	{
+		if (is_dir) return false;
+		project.open_file({
+			.uri = (DocumentUri)string::tformat("file://%s", p),
+		}, true);
+		return false;
+	};
+	path.walk(walker, null)!!;
 }

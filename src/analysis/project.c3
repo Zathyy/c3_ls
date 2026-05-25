@@ -66,7 +66,7 @@ fn void LspProject.free(&self)
 	self.files.free();
 }
 
-fn void LspProject.open_file(&self, TextDocumentItem document)
+fn void LspProject.open_file(&self, TextDocumentItem document, bool is_std_lib = false)
 {
 	String raw_uri = document.uri;
 	
@@ -90,7 +90,15 @@ fn void LspProject.open_file(&self, TextDocumentItem document)
 
     self.files[lookup_key] = ((LspFile){}).new(self.allocator, file_uri, document.text);
 
-	Parser? parser = parser::parse(&self.workspace, lookup_key, document.text);
+	Parser? parser;
+	if (is_std_lib)
+	{
+		parser = parser::parse_file(&self.workspace, lookup_key);
+	}
+	else
+	{
+		parser = parser::parse(&self.workspace, lookup_key, document.text);
+	}
     if (catch err = parser)
     {   
         log::error("Parsing failure on target file: %s (Error: %s)", lookup_key, err);
