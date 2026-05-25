@@ -90,7 +90,7 @@ fn void LspProject.open_file(&self, TextDocumentItem document)
 
     self.files[lookup_key] = ((LspFile){}).new(self.allocator, file_uri, document.text);
 
-	Parser? parser = parser::parse_file(&self.workspace, lookup_key);
+	Parser? parser = parser::parse(&self.workspace, lookup_key, document.text);
     if (catch err = parser)
     {   
         log::error("Parsing failure on target file: %s (Error: %s)", lookup_key, err);
