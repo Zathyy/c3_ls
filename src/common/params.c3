@@ -39,6 +39,7 @@ union MessageParams
 	Object unknown;
 	InitializeParams initialize;
 	DidOpenParams did_open;
+	DidChangeParams did_change;
 	DidCloseParams did_close;
 	HoverParams hover;
 	CompletionParams completion;
@@ -116,4 +117,14 @@ $expand(derive(SetTraceParams::name, dessert));
 struct SetTraceParams
 {
 	TraceKind value;
+}
+
+$expand(derive(DidChangeParams::name, dessert));
+struct DidChangeParams @DStruct({ .rename_all = CAMEL_CASE })
+{
+	struct text_document 
+	{
+		String uri;
+		int version;
+	}
 }

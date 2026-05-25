@@ -69,7 +69,7 @@ fn void LspProject.free(&self)
 fn void LspProject.open_file(&self, TextDocumentItem document)
 {
 	String raw_uri = document.uri;
-
+	
 	log::debug("Registering document stream via raw tracking token: %s", raw_uri);
     
     Uri? file_uri = uri::parse(self.allocator, raw_uri);

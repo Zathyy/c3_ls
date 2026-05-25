@@ -35,7 +35,7 @@ fn void response(Allocator allocator, LspMessage* message)
 			.capabilities = { 
 				.text_document_sync = {
 					.open_close = true,
-					.change = INCREMENTAL,
+					.change = FULL,
 				},
 				.completion_provider = {
                     .resolve_provider = true,
