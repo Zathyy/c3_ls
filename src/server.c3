@@ -14,8 +14,8 @@ LspProject project;
 
 fn void start(CliArgs args)
 {
-	log::set_logger(&&(NullLogger){});
-	log::set_priority_all(LogPriority.VERBOSE);
+	// log::set_logger(&&(NullLogger){});
+	log::set_priority_all(LogPriority.ERROR);
 	log::info("STARTUP");
 	io_handler::init();
 	defer io_handler::quit();
@@ -62,6 +62,8 @@ fn void dispatch(LspMessage* message)
 			log::info("received Initialized");
 		case DID_OPEN:
 			project.open_file(message.params.did_open.document);
+		case DID_CHANGE:
+			project.open_file(message.params.did_change.document);
 		case DID_CLOSE:
 			project.close_file(message.params.did_close.document.uri);
 		case COMPLETION:

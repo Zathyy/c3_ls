@@ -33,8 +33,10 @@ fn void publish(Allocator allocator, Parser* parser)
 	List{LspDiagnostic} diags;
 	diags.tinit();
 
-	foreach (err : parser.errors)
+	foreach (i, err : parser.errors)
 	{
+		log::error("%s", err.message);
+		if (i != 0) break;
 		diags.push({
 			.range = {
 				.start = { .line = (uint) err.loc.line, .character = (uint) err.loc.column },
@@ -45,6 +47,7 @@ fn void publish(Allocator allocator, Parser* parser)
 			.source = "c3-parser"
 		});
 	}
+
 
 	LspMessage res = {
 		.rpc = "2.0",

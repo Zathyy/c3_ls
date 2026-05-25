@@ -175,10 +175,11 @@ struct SetTraceParams
 $expand(derive(DidChangeParams::name, dessert));
 struct DidChangeParams @DStruct({ .rename_all = CAMEL_CASE })
 {
-	struct text_document 
-	{
-		String uri;
-		int version;
-	}
+	TextDocumentItem document @DField({ .rename = "textDocument" });
+	// struct text_document 
+	// {
+	// 	String uri;
+	// 	int version;
+	// }
 }
 

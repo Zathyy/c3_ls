@@ -100,6 +100,40 @@ fn void LspProject.open_file(&self, TextDocumentItem document)
 	publish_diag::publish(self.allocator, &parser);
 }
 
+fn void LspProject.change_file(&self, TextDocumentItem document)
+{
+	String raw_uri = document.uri;
+	
+	log::debug("Registering document stream via raw tracking token: %s", raw_uri);
+    
+    Uri? file_uri = uri::parse(self.allocator, raw_uri);
+	if (catch err = file_uri) 
+	{
+        log::error("Malformed URI received (%s)", raw_uri);
+        return;
+    };
+
+    String lookup_key = file_uri.path;
+
+    if (!self.files.has_key(lookup_key))
+    {
+        log::warn("File %s is not already tracking in workspace", lookup_key);
+        file_uri.free();
+        return;
+    }
+
+    self.files[lookup_key] = ((LspFile){}).new(self.allocator, file_uri, document.text);
+
+	Parser? parser = parser::parse(&self.workspace, lookup_key, document.text);
+    if (catch err = parser)
+    {   
+        log::error("Parsing failure on target file: %s (Error: %s)", lookup_key, err);
+		return;
+    }
+	
+	publish_diag::publish(self.allocator, &parser);
+}
+
 fn void LspProject.close_file(&self, DocumentUri document)
 {
 	String raw_uri = document;
