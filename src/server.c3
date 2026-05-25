@@ -20,8 +20,6 @@ fn void start(CliArgs args)
 	io_handler::init();
 	defer io_handler::quit();
 
-	
-
 	project.init(mem);
 	defer project.free();
 

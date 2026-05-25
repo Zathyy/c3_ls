@@ -80,6 +80,15 @@ constdef CompletionTriggerKind : int
 	TRIGGER_FOR_INCOMPLETE_COMPLETIONS = 3,
 }
 
+$expand(derive(MessageType::name, dessert));
+constdef MessageType : int
+{
+    ERROR = 1,
+    WARNING = 2,
+    INFO = 3,
+    LOG = 4
+}
+
 <*
     https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#completionItemKind
 *>

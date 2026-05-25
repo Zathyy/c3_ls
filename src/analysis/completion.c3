@@ -85,9 +85,8 @@ fn void provide_global(Context* ctx, List{CompletionItem}* items)
 
                 items.push((CompletionItem){
                     .label = type_name.copy(ctx.allocator),
-                    .detail = string::format(ctx.allocator, "(auto-import %s)", name),
                     .kind = analysis::completion_kind_from_node(kind),
-                    .documentation = string::format(ctx.allocator, "Type declared in module '%s'. Select to auto-import.", name)
+                    .documentation = string::format(ctx.allocator, "Type declared in module '%s'", name)
                 });
             }
         }
