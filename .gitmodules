@@ -1,0 +1,9 @@
+[submodule "lib/seali.c3l"]
+	path = lib/seali.c3l
+	url = https://github.com/Ecoral360/seali.c3l.git
+[submodule "lib/dessert.c3l"]
+	path = lib/dessert.c3l
+	url = https://github.com/Ecoral360/dessert.c3l.git
+[submodule "lib/c3_parser.c3l"]
+	path = lib/c3_parser.c3l
+	url = https://github.com/joshring/c3_parser

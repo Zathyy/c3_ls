@@ -1,8 +1,0 @@
-build/
-out/
-
-ast-debug
-
-.direnv/
-.vscode
-.idea
