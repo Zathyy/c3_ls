@@ -25,6 +25,9 @@ enum MessageKind : char (String name) @DEnum({ .as = FIELD, .field = "name" })
 	REFERENCES   { "textDocument/references" },
 	HELP         { "textDocument/signatureHelp" },
 	RENAME       { "textDocument/rename" },
+
+	PUB_DIAG     { "textDocument/publishDiagnostics" },
+
 	SHUTDOWN     { "shutdown" },
 	EXIT         { "exit" },
 	CANCEL       { "$/cancelRequest" },
@@ -39,6 +42,9 @@ union MessageParams
 	DidCloseParams did_close;
 	HoverParams hover;
 	CompletionParams completion;
+
+	PublishDiagnosticsParams pub_diag;
+
 	CancelParams cancel;
 	SetTraceParams set_trace;
 }
@@ -89,6 +95,15 @@ struct CompletionParams @DStruct({ .rename_all = CAMEL_CASE })
 	}
 	LspPosition position;
 	CompletionContext context;
+}
+
+$expand(derive(PublishDiagnosticsParams::name, dessert));
+struct PublishDiagnosticsParams
+{
+	DocumentUri uri;
+	String version;
+
+	LspDiagnostic[] diagnostics;
 }
 
 $expand(derive(CancelParams::name, dessert));
