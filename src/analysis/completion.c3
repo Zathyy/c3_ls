@@ -96,8 +96,10 @@ fn void provide_global(Context* ctx, List{CompletionItem}* items)
                     Cursor cursor = { sec, (Node)node_handle };
                     String type_name = cursor.spelling() ?? "";
 
+                    if (cursor.visibility() != PUBLIC) continue;
+                    
                     if (type_name.len == 0 || (ctx.prefix.len > 0 && !type_name.starts_with(ctx.prefix))) continue;
-
+                    
                     items.push({
                         .label = type_name.copy(ctx.allocator),
                         .kind = analysis::completion_kind_from_node(kind),
