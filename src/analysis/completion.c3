@@ -98,10 +98,10 @@ fn void provide_global(Context* ctx, List{CompletionItem}* items)
 
                     if (type_name.len == 0 || (ctx.prefix.len > 0 && !type_name.starts_with(ctx.prefix))) continue;
 
-                    items.push((CompletionItem){
+                    items.push({
                         .label = type_name.copy(ctx.allocator),
                         .kind = analysis::completion_kind_from_node(kind),
-                        .insert_text = string::format(ctx.allocator, "%s::%s", name, type_name),
+                        .insert_text = type_name,
 						.detail = name,
                         .documentation = string::format(ctx.allocator, "Type declared in module '%s'", name)
                     });
