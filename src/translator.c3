@@ -21,7 +21,7 @@ struct LspMessage
 	MessageKind method;
 	MessageParams params @DField({ .tagged = { .by = "method", .inlined = true, .unmapped.as = EMPTY_STRUCT } });
 	Allocator allocator @DField({ .skip = true });
-  	Maybe{int} id;
+  	Maybe{int} id @DField({ .skip_if_empty = true });
 }
 
 fn void LspMessage.free(&self)
