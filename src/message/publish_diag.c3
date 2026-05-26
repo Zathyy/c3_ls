@@ -28,19 +28,19 @@ struct LspDiagnostic
 	String source;
 }
 
-fn void publish(Allocator allocator, Parser* parser)
+fn void publish(Allocator allocator, ParseResult* result)
 {
 	List{LspDiagnostic} diags;
 	diags.tinit();
+	log::info("publish: len = %s", result.errors.len());
 
-	foreach (i, err : parser.errors)
+	foreach (i, err : result.errors)
 	{
 		log::error("%s", err.message);
-		if (i != 0) break;
 		diags.push({
 			.range = {
-				.start = { .line = (uint) err.loc.line, .character = (uint) err.loc.column },
-				.end = { .line = (uint) err.loc.line, .character = (uint) err.loc.column + err.token.len },
+				.start = { .line = (uint) err.loc.line - 1, .character = (uint) err.loc.column - 1 },
+				.end = { .line = (uint) err.loc.line - 1, .character = (uint) err.loc.column - 1 + err.token.len },
 			},
 			.severity = (MessageSeverity) err.level,
 			.message = err.message,
@@ -48,12 +48,11 @@ fn void publish(Allocator allocator, Parser* parser)
 		});
 	}
 
-
 	LspMessage res = {
 		.rpc = "2.0",
 		.method = PUB_DIAG,
 		.params.pub_diag = {
-			.uri = (DocumentUri) string::tformat("file://%s", parser.file_path),
+			.uri = (DocumentUri)string::tformat("file://%s", result.path),
 			.diagnostics = diags.to_tarray(),
 		}
 	};
