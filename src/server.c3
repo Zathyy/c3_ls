@@ -15,7 +15,7 @@ LspProject project;
 fn void start(CliArgs args)
 {
 	// log::set_logger(&&(NullLogger){});
-	log::set_priority_all(LogPriority.INFO);
+	log::set_priority_all(LogPriority.WARN);
 	log::info("STARTUP");
 	io_handler::init();
 	defer io_handler::quit();
