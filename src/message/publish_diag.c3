@@ -49,11 +49,9 @@ fn void publish(Allocator allocator, ParseResult* result)
 {
 	List{LspDiagnostic} diags;
 	diags.tinit();
-	log::info("publish: len = %s", result.errors.len());
 
 	foreach (i, err : result.errors)
 	{
-		log::error("%s", err.message);
 		diags.push({
 			.range = {
 				.start = { .line = (uint) err.loc.line - 1, .character = (uint) err.loc.column - 1 },

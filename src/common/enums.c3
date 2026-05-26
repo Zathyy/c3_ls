@@ -39,7 +39,7 @@ enum MarkupKind : char (String name) @DEnum({ .as = FIELD, .field = "name" })
 }
 
 $expand(derive(TextDocumentSyncKind::name, dessert));
-constdef TextDocumentSyncKind
+constdef TextDocumentSyncKind : int
 {
 	<*
 		Documents should not be synced at all.

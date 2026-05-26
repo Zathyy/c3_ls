@@ -119,3 +119,10 @@ struct CompletionItem @DStruct({ .rename_all = CAMEL_CASE })
 	String insert_text;
 	String documentation @DField({ .skip_if_empty = true });
 }
+
+$expand(derive(VersionedTextDocumentIdentifier::name, dessert));
+struct VersionedTextDocumentIdentifier @DStruct({ .rename_all = CAMEL_CASE })
+{
+    DocumentUri uri;
+    int version;
+}

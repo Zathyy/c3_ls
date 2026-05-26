@@ -172,14 +172,18 @@ struct SetTraceParams
 	TraceKind value;
 }
 
+$expand(derive(TextDocumentContentChangeEvent::name, dessert));
+struct TextDocumentContentChangeEvent @DStruct({ .rename_all = CAMEL_CASE })
+{
+	LspRange range;
+	uint range_length;
+	String text;
+}
+
 $expand(derive(DidChangeParams::name, dessert));
 struct DidChangeParams @DStruct({ .rename_all = CAMEL_CASE })
 {
-	TextDocumentItem document @DField({ .rename = "textDocument" });
-	// struct text_document 
-	// {
-	// 	String uri;
-	// 	int version;
-	// }
+	VersionedTextDocumentIdentifier document @DField({ .rename = "textDocument" });
+	TextDocumentContentChangeEvent[] content_changes;
 }
 

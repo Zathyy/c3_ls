@@ -108,9 +108,9 @@ fn void LspProject.open_file(&self, TextDocumentItem document, bool is_std_lib =
 	publish_diag::publish(self.allocator, &result);
 }
 
-fn void LspProject.change_file(&self, TextDocumentItem document)
+fn void LspProject.change_file(&self, DidChangeParams params)
 {
-	String raw_uri = document.uri;
+	String raw_uri = params.document.uri;
 	
 	log::debug("Registering document stream via raw tracking token: %s", raw_uri);
     
@@ -120,7 +120,7 @@ fn void LspProject.change_file(&self, TextDocumentItem document)
         log::error("Malformed URI received (%s)", raw_uri);
         return;
     };
-
+	
     String lookup_key = file_uri.path;
 
     if (!self.files.has_key(lookup_key))
@@ -128,12 +128,12 @@ fn void LspProject.change_file(&self, TextDocumentItem document)
         log::warn("File %s is not already tracking in workspace", lookup_key);
         file_uri.free();
         return;
-    }	
+    }
 	
 	(&self.files[lookup_key]).free();
-    self.files[lookup_key] = ((LspFile){}).new(self.allocator, file_uri, document.text);
+    self.files[lookup_key] = ((LspFile){}).new(self.allocator, file_uri, params.content_changes[0].text);
 
-	ParseResult? result = parser::parse(&self.workspace, lookup_key, document.text);
+	ParseResult? result = parser::parse(&self.workspace, lookup_key, params.content_changes[0].text);
     if (catch err = result)
     {   
         log::error("Parsing failure on target file: %s (Error: %s)", lookup_key, err);

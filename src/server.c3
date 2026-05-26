@@ -9,9 +9,10 @@ import std::core::log;
 import std::thread;
 import std::time;
 
+import uri;
+
 bool running @local;
 LspProject project;
-
 fn void start(CliArgs args)
 {
 	// log::set_logger(&&(NullLogger){});
@@ -68,7 +69,7 @@ fn void dispatch(LspMessage* message)
 		case DID_OPEN:
 			project.open_file(message.params.did_open.document);
 		case DID_CHANGE:
-			project.change_file(message.params.did_change.document);
+			project.change_file(message.params.did_change);
 		case DID_CLOSE:
 			project.close_file(message.params.did_close.document.uri);
 		case COMPLETION:
@@ -89,8 +90,10 @@ fn void process_stdlib(String std_path)
 	PathWalker walker = fn bool? (Path p, bool is_dir, void* data)
 	{
 		if (is_dir) return false;
+		Uri file_uri = uri::from_file_path(tmem, (String)p);
+		DocumentUri formatted_uri = (DocumentUri)file_uri.to_raw_string(tmem);
 		project.open_file({
-			.uri = (DocumentUri)string::tformat("file://%s", p),
+			.uri = formatted_uri,
 		}, true);
 		return false;
 	};
