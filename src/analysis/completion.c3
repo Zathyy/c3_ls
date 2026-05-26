@@ -84,7 +84,6 @@ fn void provide_global(Context* ctx, List{CompletionItem}* items)
                 foreach (node_handle : sec.source_file.ast.top_level_nodes)
                 {
                     if (node_handle < sec.start_node_idx || node_handle >= sec.end_node_idx) continue;
-
                     NodeKind kind = sec.source_file.ast.get_kind((Node)node_handle);
 					switch (kind)
 					{
@@ -92,7 +91,6 @@ fn void provide_global(Context* ctx, List{CompletionItem}* items)
 						case IMPORT_DECL: continue;
 						default: break;
 					}
-
                     Cursor cursor = { sec, (Node)node_handle };
                     String type_name = cursor.spelling() ?? "";
 
@@ -103,7 +101,7 @@ fn void provide_global(Context* ctx, List{CompletionItem}* items)
                     items.push({
                         .label = type_name.copy(ctx.allocator),
                         .kind = analysis::completion_kind_from_node(kind),
-                        .insert_text = type_name,
+                        .insert_text = cursor.shortened_path(ctx.ws),
 						.detail = name,
                         .documentation = string::format(ctx.allocator, "Type declared in module '%s'", name)
                     });
