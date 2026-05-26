@@ -79,6 +79,6 @@ fn void publish(Allocator allocator, ParseResult* result)
 
 	String response_json = translator::encode(res, allocator);
 
-	log::error("complete response: %s", response_json);
+	log::debug("complete response: %s", response_json);
 	io_handler::write(response_json);
 }
