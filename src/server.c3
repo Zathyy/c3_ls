@@ -84,7 +84,7 @@ fn void dispatch(LspMessage* message)
 	}
 }
 
-fn void process_stdlib(String std_path)
+fn void process_stdlib(String std_path) => @pool()
 {
 	Path path = path::tnew(std_path)!!;
 	PathWalker walker = fn bool? (Path p, bool is_dir, void* data)

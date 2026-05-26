@@ -50,9 +50,9 @@ fn void response(Allocator allocator, LspProject* project, LspMessage* message)
 		.jsonrpc = message.rpc,
 		.id = message.id.get() ?? -1,
 		.result = {
-			.is_incomplete = false,
+			.is_incomplete = true,
         	.items = items ?? {},
-		}
+		} 
 	};
 
 	String response_json = translator::encode(res, allocator);

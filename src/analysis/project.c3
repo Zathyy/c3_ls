@@ -104,14 +104,13 @@ fn void LspProject.open_file(&self, TextDocumentItem document, bool is_std_lib =
         log::error("Parsing failure on target file: %s (Error: %s)", lookup_key, err);
 		return;
     }
-	
+
 	publish_diag::publish(self.allocator, &result);
 }
 
 fn void LspProject.change_file(&self, DidChangeParams params)
 {
 	String raw_uri = params.document.uri;
-	
 	log::debug("Registering document stream via raw tracking token: %s", raw_uri);
     
     Uri? file_uri = uri::parse(self.allocator, raw_uri);
@@ -128,12 +127,18 @@ fn void LspProject.change_file(&self, DidChangeParams params)
         log::warn("File %s is not already tracking in workspace", lookup_key);
         file_uri.free();
         return;
-    }
+    } 
 	
-	(&self.files[lookup_key]).free();
-    self.files[lookup_key] = ((LspFile){}).new(self.allocator, file_uri, params.content_changes[0].text);
+	LspFile* file = (&self.files[lookup_key]);
 
-	ParseResult? result = parser::parse(&self.workspace, lookup_key, params.content_changes[0].text);
+	if (file.text.ptr != null)
+    {
+        mem::free(file.text); 
+    }
+
+	file.text = params.content_changes[0].text.copy(self.allocator);
+	file.uri = file_uri;
+	ParseResult? result = parser::parse(&self.workspace, lookup_key, file.text);
     if (catch err = result)
     {   
         log::error("Parsing failure on target file: %s (Error: %s)", lookup_key, err);

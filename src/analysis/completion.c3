@@ -40,31 +40,31 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
         .line = (sz)ctx.position.line + 1, 
         .column = (sz)ctx.position.character + 1 
     };
+    
+	List{CompletionItem} items; items.init(tmem);
+    List{ModuleSection*} file_sections = ctx.ws.find_section_by_path(uri.path);
+    if (file_sections.len() == 0)
+    {
+        return items.array_view(); // No tracked sections for this file yet
+    }
 
-	List{CompletionItem} items;
-    items.init(tmem);
-
+    SourceFile* sf = file_sections.get(0).source_file;
+    uint offset = sf.line_map.get_offset(sf.source, loc);
+	ctx.prefix = analysis::extract_prefix(sf.source, (sz)offset);
+    
 	Cursor current_cursor = ctx.ws.find_at_location(uri.path, loc);
 
 	if (current_cursor.section != null)
     {
 		ctx.section = current_cursor.section;
-        SourceFile* sf = current_cursor.section.source_file;
-        uint offset = sf.line_map.get_offset(sf.source, loc);
-        ctx.prefix = analysis::extract_prefix(sf.source, (sz)offset);
     }
     else
     {
-        List{ModuleSection*} file_sections = ctx.ws.find_section_by_path(uri.path);
-        if (file_sections.len() > 0)
-        {
-            ctx.section = file_sections.get(0);
-        }
-    }
-
+		ctx.section = file_sections.last()!;
+    }  
+    
 	foreach (provider : PROVIDERS)
     {
-        if (ctx.section == null && provider != &provide_keywords) continue;
         provider(&ctx, &items);
     }
 
@@ -73,8 +73,8 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
 
 fn void provide_global(Context* ctx, List{CompletionItem}* items)
 {
-    String active_mod_name = ctx.section.parent_module.name;
-
+    String active_mod_name = ctx.section.parent_module.name;  
+    
     ctx.ws.modules.@each(; name, mod)
     {
         if (name != active_mod_name)
@@ -107,10 +107,10 @@ fn void provide_global(Context* ctx, List{CompletionItem}* items)
                     });
                 }
             }
-        }
+        }  
     };
-}
- 
+} 
+
 fn void provide_keywords(Context* ctx, List{CompletionItem}* items)
 {
     $foreach $kw : Keywords::values:

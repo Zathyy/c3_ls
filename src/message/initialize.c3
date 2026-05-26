@@ -23,7 +23,7 @@ struct LspInitializeResponse
 			String name;
 			String version;
 		}
-	}
+	} 
 }
 
 fn void response(Allocator allocator, LspMessage* message)
