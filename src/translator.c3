@@ -115,7 +115,7 @@ macro IoDecodeResult? decode(Allocator allocator, String message)
 		);
 	}
 
-	LspMessage? lsp_message = des::deserialize{LspMessage}(&&json::deserializer(json_message));
+	LspMessage? lsp_message = des::deserialize{LspMessage}(&&json::tdeserializer(json_message));
 	if (catch err = lsp_message)
 	{
 		return err~;
