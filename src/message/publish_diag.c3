@@ -28,6 +28,23 @@ struct LspDiagnostic
 	String source;
 }
 
+fn MessageSeverity to_severity(LogPriority prio)
+{
+	switch (prio)
+	{
+		case LogPriority.INFO:
+			return MessageSeverity.INFO;
+		case LogPriority.WARN:
+			return MessageSeverity.WARNING;
+		case LogPriority.ERROR:
+		case LogPriority.CRITICAL:
+			return MessageSeverity.ERROR;
+		default: break;
+	}
+
+	return MessageSeverity.HINT;
+}
+
 fn void publish(Allocator allocator, ParseResult* result)
 {
 	List{LspDiagnostic} diags;
@@ -42,23 +59,26 @@ fn void publish(Allocator allocator, ParseResult* result)
 				.start = { .line = (uint) err.loc.line - 1, .character = (uint) err.loc.column - 1 },
 				.end = { .line = (uint) err.loc.line - 1, .character = (uint) err.loc.column - 1 + err.token.len },
 			},
-			.severity = (MessageSeverity) err.level,
+			.severity = to_severity(err.level),
 			.message = err.message,
 			.source = "c3-parser"
 		});
 	}
 
+	Uri file_uri = uri::from_file_path(tmem, result.path);
+	DocumentUri formatted_uri = (DocumentUri)file_uri.to_raw_string(tmem);
+
 	LspMessage res = {
 		.rpc = "2.0",
 		.method = PUB_DIAG,
 		.params.pub_diag = {
-			.uri = (DocumentUri)string::tformat("file://%s", result.path),
+			.uri = formatted_uri,
 			.diagnostics = diags.to_tarray(),
 		}
 	};
 
 	String response_json = translator::encode(res, allocator);
 
-	log::debug("complete response: %s", response_json);
+	log::error("complete response: %s", response_json);
 	io_handler::write(response_json);
 }
