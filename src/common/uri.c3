@@ -23,7 +23,11 @@ fn void Uri.free(&self)
 
 fn sz? Uri.to_format(&self, Formatter* formatter) @dynamic
 {
-	return formatter.printf("%s://%s", self.scheme, self.path);
+	$if env::WIN32:
+        return formatter.printf("%s:///%s", self.scheme, self.path);
+    $else
+        return formatter.printf("%s://%s", self.scheme, self.path);
+    $endif
 }
 
 fn bool Uri.equal(self, Uri other) @operator(==)
@@ -121,6 +125,41 @@ fn Uri? parse(Allocator allocator, String raw_uri) => @pool()
 	};
 }
 
+fn Uri from_file_path(Allocator allocator, String native_path)
+{
+    String cleaned_path = native_path.copy(tmem);
+    for (sz i = 0; i < cleaned_path.len; i++)
+    {
+        if (cleaned_path[i] == '\\')
+        {
+            cleaned_path[i] = '/';
+        }
+    }
+
+    // (c:/ -> C:/)
+    $if env::WIN32:
+        if (cleaned_path.len >= 2 && cleaned_path[0].is_lower() && cleaned_path[1] == ':')
+        {
+            cleaned_path[0] = cleaned_path[0].to_upper();
+        }
+    $endif
+
+    return (Uri){
+        .scheme = "file".copy(allocator),
+        .path = cleaned_path.copy(allocator),
+        .allocator = allocator
+    };
+}
+
+fn String Uri.to_raw_string(&self, Allocator output_allocator)
+{
+    $if env::WIN32:
+        return string::format(output_allocator, "%s:///%s", self.scheme, self.path);
+    $else
+        return string::format(output_allocator, "%s://%s", self.scheme, self.path);
+    $endif
+}
+
 fn void uri_windows_test() @test @if(env::WIN32)
 {
     String value = `file:///C%3A/project/readme.md`;
@@ -150,4 +189,28 @@ fn void uri_linux_test() @test @if(env::LINUX)
     log::debug("Linux Test Result: %s", uri);
 
     assert(uri == expected);
+}
+
+fn void uri_serialization_windows_test() @test @if(env::WIN32)
+{
+    String native_path = `C:\project\readme.md`;
+    Uri uri = from_file_path(mem, native_path);
+    defer uri.free();
+
+    String raw_uri = uri.to_raw_string(tmem);
+    log::debug("Windows To URI Result: %s", raw_uri);
+
+    assert(raw_uri == "file:///C:/project/readme.md");
+}
+
+fn void uri_serialization_linux_test() @test @if(env::LINUX)
+{
+    String native_path = "/home/user/code/main.c3";
+    Uri uri = from_file_path(mem, native_path);
+    defer uri.free();
+
+    String raw_uri = uri.to_raw_string(tmem);
+    log::debug("Linux To URI Result: %s", raw_uri);
+
+    assert(raw_uri == "file:///home/user/code/main.c3");
 }
