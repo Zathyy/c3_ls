@@ -89,7 +89,7 @@ fn void provide_global(Context* ctx, List{CompletionItem}* items)
 					// 	default: break;
 					// }
                     Cursor cursor = { sec, node };
-                    String type_name = cursor.spelling(mem) ?? "";
+                    String type_name = cursor.spelling(tmem) ?? "";
 
                     if (node.visibility != PUBLIC) continue;
                     
