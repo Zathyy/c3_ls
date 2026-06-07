@@ -6,7 +6,7 @@ import std::collections::map;
 import lsp::msg_handler::publish_diag;
 import dessert;
 import derive;
-import c3_parser;
+import parser;
 import uri;
 
 struct LspFile

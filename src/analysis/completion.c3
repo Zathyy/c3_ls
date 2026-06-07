@@ -1,9 +1,8 @@
 module lsp::analysis::completion;
 
-import c3_parser::workspace;
-import c3_parser::ast;
-import c3_parser::cursor;
-import c3_parser::common;
+import parser::workspace;
+import parser::ast;
+import parser::cursor;
 
 import std::collections::list;
 
@@ -49,19 +48,19 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
     }
 
     SourceFile* sf = file_sections.get(0).source_file;
-    uint offset = sf.line_map.get_offset(sf.source, loc);
+    sz offset = sf.line_map.get_offset(sf.source, loc);
 	ctx.prefix = analysis::extract_prefix(sf.source, (sz)offset);
     
-	Cursor current_cursor = ctx.ws.find_at_location(uri.path, loc);
-
-	if (current_cursor.section != null)
-    {
-		ctx.section = current_cursor.section;
-    }
-    else
-    {
-		ctx.section = file_sections.last()!;
-    }  
+	// Cursor current_cursor = ctx.ws.find_at_location(uri.path, loc);
+	//
+	// if (current_cursor.section != null)
+ //    {
+	// 	ctx.section = current_cursor.section;
+ //    }
+ //    else
+ //    {
+	// 	ctx.section = file_sections.last()!;
+ //    }  
     
 	foreach (provider : PROVIDERS)
     {
@@ -81,27 +80,25 @@ fn void provide_global(Context* ctx, List{CompletionItem}* items)
         {
             foreach (sec : mod.sections)
             {
-                foreach (node_handle : sec.source_file.ast.top_level_nodes)
+                foreach (node : sec.nodes)
                 {
-                    if (node_handle < sec.start_node_idx || node_handle >= sec.end_node_idx) continue;
-                    NodeKind kind = sec.source_file.ast.get_kind((Node)node_handle);
-					switch (kind)
-					{
-						case MODULE_DECL: continue;
-						case IMPORT_DECL: continue;
-						default: break;
-					}
-                    Cursor cursor = { sec, (Node)node_handle };
-                    String type_name = cursor.spelling() ?? "";
+					// switch (node.kind)
+					// {
+					// 	case MODULE_DECL: continue;
+					// 	case IMPORT_DECL: continue;
+					// 	default: break;
+					// }
+                    Cursor cursor = { sec, node };
+                    String type_name = cursor.spelling(mem) ?? "";
 
-                    if (cursor.visibility() != PUBLIC) continue;
+                    if (node.visibility != PUBLIC) continue;
                     
                     if (type_name.len == 0 || (ctx.prefix.len > 0 && !type_name.starts_with(ctx.prefix))) continue;
                     
                     items.push({
                         .label = type_name.copy(ctx.allocator),
-                        .kind = analysis::completion_kind_from_node(kind),
-                        .insert_text = cursor.shortened_path(ctx.ws),
+                        .kind = analysis::completion_kind_from_node(node.kind),
+                        // .insert_text = cursor.shortened_path(ctx.ws),
 						.detail = name,
                         .documentation = string::format(ctx.allocator, "Type declared in module '%s'", name)
                     });

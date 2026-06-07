@@ -1,6 +1,6 @@
 module lsp::analysis;
 
-import c3_parser::ast;
+import parser::ast;
 
 fn String extract_prefix(String text, sz byte_offset)
 {

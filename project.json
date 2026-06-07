@@ -11,7 +11,7 @@
   "targets": {
     "c3_ls": {
       "type": "executable",
-      "features": ["C3_PARSER_LIB"],
+      "features": ["PARSER_LIB"],
     },
   },
   "cpu": "generic",
