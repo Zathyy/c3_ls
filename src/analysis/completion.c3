@@ -82,6 +82,8 @@ fn void provide_global(Context* ctx, List{CompletionItem}* items)
             {
                 foreach (node : sec.nodes)
                 {
+                    if (node.visibility != PUBLIC) continue;
+                    
 					// switch (node.kind)
 					// {
 					// 	case MODULE_DECL: continue;
@@ -89,14 +91,16 @@ fn void provide_global(Context* ctx, List{CompletionItem}* items)
 					// 	default: break;
 					// }
                     Cursor cursor = { sec, node };
-                    String type_name = cursor.spelling(tmem) ?? "";
+                    String type_name = cursor.spelling(ctx.allocator) ?? "";
 
-                    if (node.visibility != PUBLIC) continue;
-                    
-                    if (type_name.len == 0 || (ctx.prefix.len > 0 && !type_name.starts_with(ctx.prefix))) continue;
+                    if (type_name.len == 0 || (ctx.prefix.len > 0 && !type_name.starts_with(ctx.prefix))) 
+					{
+						if (type_name.len != 0) type_name.free(ctx.allocator);
+						continue;
+					}
                     
                     items.push({
-                        .label = type_name.copy(ctx.allocator),
+                        .label = type_name,
                         .kind = analysis::completion_kind_from_node(node.kind),
                         // .insert_text = cursor.shortened_path(ctx.ws),
 						.detail = name,
