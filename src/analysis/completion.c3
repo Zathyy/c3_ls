@@ -36,8 +36,8 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
 	};
 
 	Location loc = { 
-        .line = (sz)ctx.position.line + 1, 
-        .column = (sz)ctx.position.character + 1 
+        .line = (sz)ctx.position.line, 
+        .column = (sz)ctx.position.character 
     };
     
 	List{CompletionItem} items; items.init(tmem);
@@ -66,7 +66,7 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
     {
         provider(&ctx, &items);
     }
-
+    
 	return items.array_view();
 }
 
@@ -76,38 +76,37 @@ fn void provide_global(Context* ctx, List{CompletionItem}* items)
     
     ctx.ws.modules.@each(; name, mod)
     {
-        if (name != active_mod_name)
+        foreach (sec : mod.sections)
         {
-            foreach (sec : mod.sections)
-            {
-                foreach (node : sec.nodes)
-                {
-                    if (node.visibility != PUBLIC) continue;
-                    
-					// switch (node.kind)
-					// {
-					// 	case MODULE_DECL: continue;
-					// 	case IMPORT_DECL: continue;
-					// 	default: break;
-					// }
-                    Cursor cursor = { sec, node };
-                    String type_name = cursor.spelling(tmem) ?? "";
+            if (sec == ctx.section) continue;
 
-                    if (type_name.len == 0 || (ctx.prefix.len > 0 && !type_name.starts_with(ctx.prefix))) 
-					{
-						continue;
-					}
-                    
-                    items.push({
-                        .label = type_name,
-                        .kind = analysis::completion_kind_from_node(node.kind),
-                        // .insert_text = cursor.shortened_path(ctx.ws),
-						.detail = name,
-                        .documentation = string::tformat("Type declared in module '%s'", name)
-                    });
+            foreach (node : sec.nodes)
+            {
+                if (node.visibility != PUBLIC) continue;
+            
+                switch (node.kind)
+                {
+                    case MODULE_DECL: continue;
+                    case IMPORT_DECL: continue;
+                    default: break;
                 }
+                Cursor cursor = { sec, node };
+                String type_name = cursor.spelling(tmem) ?? "";
+
+                if (type_name.len == 0 || (ctx.prefix.len > 0 && !type_name.starts_with(ctx.prefix))) 
+                {
+                    continue;
+                }
+                
+                items.push({
+                    .label = type_name,
+                    .kind = analysis::completion_kind_from_node(node.kind),
+                    // .insert_text = cursor.shortened_path(ctx.ws),
+                    .detail = name,
+                    .documentation = string::tformat("Type declared in module '%s'", name)
+                });
             }
-        }  
+        }
     };
 } 
 

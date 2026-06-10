@@ -89,4 +89,4 @@ fn void process_stdlib(String std_path) => @pool()
 	};
 	path.walk(walker, null)!!;
 	log::warn("Finsihed parsing stdlib");
-}
+} 

@@ -11,8 +11,7 @@ import derive;
 
 faultdef
 	INVALID_MESSAGE,
-	INCOMPLETE_JSON,
-;
+	INCOMPLETE_JSON;
 
 $expand(derive(LspMessage::name, dessert));
 struct LspMessage
