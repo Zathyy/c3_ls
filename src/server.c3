@@ -19,7 +19,6 @@ fn void start(CliArgs args)
 	log::set_priority_all(LogPriority.WARN);
 	log::info("STARTUP");
 	io_handler::init();
-	defer io_handler::quit();
 
 	project.init(mem);
 	defer project.free();
@@ -43,13 +42,6 @@ fn void loop()
 		LspMessage? data = io_handler::read(tmem);
 		if (catch err = data)
 		{
-			if (err == io_handler::NO_NEW_DATA)
-			{
-				//TODO: How long?
-				thread::sleep(time::ms(1));
-				continue;
-			}
-
 			log::error("Stream read error encountered: %s", err);
 			continue;
 		}
@@ -90,12 +82,11 @@ fn void process_stdlib(String std_path) => @pool()
 	PathWalker walker = fn bool? (Path p, bool is_dir, void* data)
 	{
 		if (is_dir) return false;
-		Uri file_uri = uri::from_file_path(tmem, (String)p);
+		Uri file_uri              = uri::from_file_path(tmem, (String)p);
 		DocumentUri formatted_uri = (DocumentUri)file_uri.to_raw_string(tmem);
-		project.open_file({
-			.uri = formatted_uri,
-		}, true);
+		project.open_file({ .uri = formatted_uri, }, true);
 		return false;
 	};
 	path.walk(walker, null)!!;
+	log::warn("Finsihed parsing stdlib");
 }

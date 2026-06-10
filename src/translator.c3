@@ -57,7 +57,7 @@ struct IoDecodeResult
 
 <*
 	Decode JSONRPC message
-	@param [in] message
+	@param [in] message : `json message without the header`
 	@return "LSP message allocated with `allocator`, as well as length of whole"
 		"message"
 	@return? INCOMPLETE_JSON
@@ -65,57 +65,31 @@ struct IoDecodeResult
 *>
 macro IoDecodeResult? decode(Allocator allocator, String message)
 {
-	const String HEADER_START = "Content-Length: ";
-	const String ESCAPE = "\r\n\r\n";
-	if (message.len < HEADER_START.len + ESCAPE.len + 1)
-	{
-		log::verbose("invalid message: too short");
-	}
-	String[] split = message.split(tmem, ESCAPE);
-	if (split.len < 2)
-	{
-		return INCOMPLETE_JSON~;
-	}
+	if (message.len == 0) return INVALID_MESSAGE~;	
 
-	String header = split[0];
-	String content_length_str = header[HEADER_START.len..];
-	ulong content_length;
-	if (catch @try(content_length, content_length_str.to_ulong()))
-	{
-		return INCOMPLETE_JSON~;
-	}
-	usz message_len = header.len + ESCAPE.len + content_length;
-	if (split[1].len < content_length)
-	{
-		log::verbose("json message smaller than what header says");
-		return INCOMPLETE_JSON~;
-	}
-
-	String json_message = split[1][:content_length];
-	
-	sz method_idx = json_message.index_of("\"method\":") ?? -1;
-	sz params_idx = json_message.index_of("\"params\":") ?? -1;
+	sz method_idx = message.index_of("\"method\":") ?? -1;
+	sz params_idx = message.index_of("\"params\":") ?? -1;
 	// if the method is after the params, we move it at the start of the json string
 	// so it can be deserialized properly
 	if (params_idx != -1 && method_idx > params_idx)
 	{
-		method_idx = json_message.rindex_of("\"method\":")!!;
+		method_idx = message.rindex_of("\"method\":")!!;
 		int method_len = "\"method\":".len;
 		int quote_count = 0;
 		while (quote_count != 2)
 		{
-			if (json_message[method_idx + method_len] == '"') quote_count++;
+			if (message[method_idx + method_len] == '"') quote_count++;
 			method_len++;
 		}
 
-		json_message = string::tformat(
+		message = string::tformat(
 			"{%s,%s%s", 
-			json_message[method_idx:method_len], 
-			json_message[1..method_idx - 2], json_message[method_idx + method_len..]
+			message[method_idx:method_len], 
+			message[1..method_idx - 2], message[method_idx + method_len..]
 		);
 	}
 
-	LspMessage? lsp_message = des::deserialize{LspMessage}(&&json::tdeserializer(json_message));
+	LspMessage? lsp_message = des::deserialize{LspMessage}(&&json::tdeserializer(message));
 	if (catch err = lsp_message)
 	{
 		return err~;
@@ -125,6 +99,6 @@ macro IoDecodeResult? decode(Allocator allocator, String message)
 
 	return {
 		.message = lsp_message,
-		.len = message_len
+		.len = message.len
 	};
 }

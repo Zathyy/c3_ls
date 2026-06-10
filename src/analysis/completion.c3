@@ -47,21 +47,21 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
         return items.array_view(); // No tracked sections for this file yet
     }
 
-    SourceFile* sf = file_sections.get(0).source_file;
-    sz offset = sf.line_map.get_offset(sf.source, loc);
+	SourceFile* sf = file_sections.get(0).source_file;
+	sz offset = sf.line_map.get_offset(sf.source, loc);
 	ctx.prefix = analysis::extract_prefix(sf.source, (sz)offset);
-    
-	// Cursor current_cursor = ctx.ws.find_at_location(uri.path, loc);
-	//
-	// if (current_cursor.section != null)
- //    {
-	// 	ctx.section = current_cursor.section;
- //    }
- //    else
- //    {
-	// 	ctx.section = file_sections.last()!;
- //    }  
-    
+
+	Cursor current_cursor = ctx.ws.find_at_location(uri.path, loc);
+
+	if (current_cursor.section != null)
+	{
+		ctx.section = current_cursor.section;
+	}
+	else
+	{
+		ctx.section = file_sections.last()!;
+	}  
+
 	foreach (provider : PROVIDERS)
     {
         provider(&ctx, &items);
@@ -91,11 +91,10 @@ fn void provide_global(Context* ctx, List{CompletionItem}* items)
 					// 	default: break;
 					// }
                     Cursor cursor = { sec, node };
-                    String type_name = cursor.spelling(ctx.allocator) ?? "";
+                    String type_name = cursor.spelling(tmem) ?? "";
 
                     if (type_name.len == 0 || (ctx.prefix.len > 0 && !type_name.starts_with(ctx.prefix))) 
 					{
-						if (type_name.len != 0) type_name.free(ctx.allocator);
 						continue;
 					}
                     
@@ -104,7 +103,7 @@ fn void provide_global(Context* ctx, List{CompletionItem}* items)
                         .kind = analysis::completion_kind_from_node(node.kind),
                         // .insert_text = cursor.shortened_path(ctx.ws),
 						.detail = name,
-                        .documentation = string::format(ctx.allocator, "Type declared in module '%s'", name)
+                        .documentation = string::tformat("Type declared in module '%s'", name)
                     });
                 }
             }
