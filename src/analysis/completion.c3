@@ -47,7 +47,7 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
         .column = (sz)ctx.position.character
     };
 
-    log::warn("resolve - editor location: %s:%s", loc.line + 1, loc.column + 1);
+    log::info("resolve - editor location: %s:%s", loc.line + 1, loc.column + 1);
     
 	List{CompletionItem} items; items.init(tmem);
     List{ModuleSection*} file_sections = ctx.ws.find_section_by_path(uri.path);
@@ -62,7 +62,7 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
 
     Location res_loc = sf.line_map.resolve(offset);
 
-    log::warn("resolve - parser location: %s:%s", res_loc.line + 1, res_loc.column + 1);
+    log::info("resolve - parser location: %s:%s", res_loc.line + 1, res_loc.column + 1);
 
 
     ctx.access = NONE;
@@ -80,11 +80,11 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
         {
             current_cursor.node = deep_leaf;
         }
-        
 		log::warn("node_kind: %s", current_cursor.node.kind.description);
 
 		if (current_cursor.is_access_node())
 		{
+            log::warn("ACCESS!!!");
 			AccessExpr* access = current_cursor.node.as(ACCESS_EXPR);
 			if (access.kind == STATIC)
 			{
@@ -105,13 +105,13 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
 	}
 	else
 	{   
-        log::warn("failed to find a section");
+        log::info("failed to find a section");
 		ctx.section = file_sections.last()!;
 	}   
 	ctx.scope = analysis::find_scope(&ctx, (int)offset, &ctx.enclosing_node);
 
-    log::warn("Scope: %s", ctx.scope.description);
-    log::warn("base_ident: %s", ctx.base_identifier);
+    log::info("Scope: %s", ctx.scope.description);
+    log::info("base_ident: %s", ctx.base_identifier);
 
 	foreach (provider : PROVIDERS)
     {
@@ -201,7 +201,7 @@ fn void provide_global(Context* ctx, List{CompletionItem}* items)
                 
                 items.push({
                     .label = type_name,
-                    .kind = analysis::completion_kind_from_node(node.kind),
+                    .kind = analysis::completion_kind_from_node(node),
                     // .insert_text = cursor.shortened_path(ctx.ws),
                     .detail = name,
                     .documentation = string::tformat("Type declared in module '%s'", name)

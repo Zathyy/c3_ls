@@ -24,8 +24,10 @@ fn String extract_prefix(String text, sz byte_offset)
     return text[start_idx..byte_offset];
 }
 
-fn CompletionItemKind completion_kind_from_node(NodeKind kind)
+fn CompletionItemKind completion_kind_from_node(Node* node)
 {
+	NodeKind kind = node.kind;
+
 	switch (kind)
 	{
 		case MODULE_DECL:    return MODULE;
@@ -33,6 +35,21 @@ fn CompletionItemKind completion_kind_from_node(NodeKind kind)
 		case ENUM_DECL:      return ENUM;
 		case INTERFACE_DECL: return INTERFACE;
 		case STRUCT_DECL:    return STRUCT;
+        case VAR_DECL:
+		{
+			VarDecl* var_decl = node.as(VAR_DECL);
+			if (var_decl.flags.is_const)
+			{
+				return CONSTANT;
+			}
+			switch (var_decl.kind)
+			{
+				case VAR_FIELD:
+					return FIELD;
+				default:
+					return VARIABLE;
+			}
+		}
 		default:
 			return TEXT;
 	}
