@@ -16,11 +16,18 @@ struct Context
 	ModuleSection* section;
 	Allocator allocator;
 	String prefix;
+	ScopeKind scope;
+    Node* enclosing_node;
+
+    LspAccessKind access;
+    String base_identifier; // Stores 'variable' or 'Type' string found before the operator
 }
 
 alias CompletionProvider = fn void(Context* ctx, List{CompletionItem}* items);
 
 const CompletionProvider[] PROVIDERS = {
+	&provide_member_access,
+	&provide_locals,
     &provide_keywords,
     &provide_global
 };
@@ -34,11 +41,13 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
 		.ws = &project.workspace,
 		.allocator = tmem,
 	};
-
+    
 	Location loc = { 
-        .line = (sz)ctx.position.line, 
-        .column = (sz)ctx.position.character 
+        .line = (sz)ctx.position.line,
+        .column = (sz)ctx.position.character
     };
+
+    log::warn("resolve - editor location: %s:%s", loc.line + 1, loc.column + 1);
     
 	List{CompletionItem} items; items.init(tmem);
     List{ModuleSection*} file_sections = ctx.ws.find_section_by_path(uri.path);
@@ -46,33 +55,124 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
     {
         return items.array_view(); // No tracked sections for this file yet
     }
-
+    
 	SourceFile* sf = file_sections.get(0).source_file;
 	sz offset = sf.line_map.get_offset(sf.source, loc);
 	ctx.prefix = analysis::extract_prefix(sf.source, (sz)offset);
 
-	Cursor current_cursor = ctx.ws.find_at_location(uri.path, loc);
+    Location res_loc = sf.line_map.resolve(offset);
 
-	if (current_cursor.section != null)
+    log::warn("resolve - parser location: %s:%s", res_loc.line + 1, res_loc.column + 1);
+
+
+    ctx.access = NONE;
+    ctx.base_identifier = "";
+
+	Cursor current_cursor = ctx.ws.find_at_location(uri.path, loc);
+    
+	if (current_cursor.section != null && current_cursor.node != null)
 	{
 		ctx.section = current_cursor.section;
+
+        Node* deep_leaf = cursor::find_innermost_node(current_cursor.node, (int)offset, sf);
+
+        if (deep_leaf != null)
+        {
+            current_cursor.node = deep_leaf;
+        }
+        
+		log::warn("node_kind: %s", current_cursor.node.kind.description);
+
+		if (current_cursor.is_access_node())
+		{
+			AccessExpr* access = current_cursor.node.as(ACCESS_EXPR);
+			if (access.kind == STATIC)
+			{
+				ctx.access = LspAccessKind.STATIC;
+			}
+			else
+			{
+				ctx.access = LspAccessKind.INSTANCE;
+			}
+            
+            if (access.left)
+            {
+                Cursor left_cursor = { ctx.section, access.left };
+                ctx.base_identifier = left_cursor.spelling(tmem) ?? "";
+				log::warn("found left on access: %s", ctx.base_identifier);
+            }
+		}
 	}
 	else
-	{
+	{   
+        log::warn("failed to find a section");
 		ctx.section = file_sections.last()!;
-	}  
+	}   
+	ctx.scope = analysis::find_scope(&ctx, (int)offset, &ctx.enclosing_node);
+
+    log::warn("Scope: %s", ctx.scope.description);
+    log::warn("base_ident: %s", ctx.base_identifier);
 
 	foreach (provider : PROVIDERS)
     {
         provider(&ctx, &items);
     }
-    
+
 	return items.array_view();
+}
+
+fn void provide_member_access(Context* ctx, List{CompletionItem}* items)
+{
+    if (ctx.access == NONE || ctx.base_identifier.len == 0) return;
+
+    switch (ctx.access)
+    {
+        case STATIC:
+        {
+            Node* type_node = ctx.ws.find_symbol_by_name(ctx.base_identifier) ?? null;
+            if (!type_node) return;
+            analysis::inject_type_properties(ctx, items, type_node.kind);
+            // Block general keywords/globals since we match a explicit static type path
+            ctx.prefix = "\0_CONTEXT_LOCK_";
+            break;
+        }
+        case INSTANCE:
+        {
+            /*
+            Node* var_decl = find_local_var_declaration(ctx, ctx.base_identifier);
+            if (!var_decl) return;
+
+            StructDecl* str_decl = analysis::resolve_to_struct_decl(ctx.ws, ctx.section, var_decl);
+            if (!str_decl) return;
+
+            foreach (field_node : str_decl.fields)
+            {
+                VarDecl* field = field_node.as(VAR_DECL);
+                Cursor cursor = { ctx.section, field_node };
+                String field_name = cursor.spelling(tmem) ?? "";
+
+                if (ctx.prefix.len == 0 || field_name.starts_with(ctx.prefix))
+                {
+                    items.push({
+                        .label = field_name,
+                        .kind = FIELD,
+                        .detail = string::tformat("Field of %s", str_decl.name)
+                    });
+                }
+            }
+            // Block general keywords/globals
+            ctx.prefix = "\0_CONTEXT_LOCK_";
+            break;
+            */
+        }
+        default:
+    }
 }
 
 fn void provide_global(Context* ctx, List{CompletionItem}* items)
 {
-    String active_mod_name = ctx.section.parent_module.name;  
+    String active_mod_name = ctx.section.parent_module.name;
+    if (ctx.access != NONE) return;
     
     ctx.ws.modules.@each(; name, mod)
     {
@@ -82,6 +182,7 @@ fn void provide_global(Context* ctx, List{CompletionItem}* items)
 
             foreach (node : sec.nodes)
             {
+				if (!node) continue;
                 if (node.visibility != PUBLIC) continue;
             
                 switch (node.kind)
@@ -110,16 +211,100 @@ fn void provide_global(Context* ctx, List{CompletionItem}* items)
     };
 } 
 
+fn void provide_locals(Context* ctx, List{CompletionItem}* items)
+{
+	if (ctx.scope != EXECUTION) return;
+    if (ctx.access != NONE) return;
+
+	Node* parent = ctx.enclosing_node;
+    ModuleSection* sec = ctx.section;
+    if (!parent) 
+    {
+        log::warn("No parent");
+        return;
+    }
+    
+	if (parent.kind == FN_DECL)
+    {
+        FnDecl* func = parent.as(FN_DECL);
+		foreach (param_node : func.params)
+		{
+			VarDecl* param = param_node.as(VAR_DECL);
+			Cursor cursor = { sec, param_node };
+			String name = cursor.spelling(tmem) ?? "";
+            items.push({ .label = name, .kind = VARIABLE, .detail = "Fn Argument" });
+		}
+        
+		Node* body = func.body;
+		switch (body.kind)
+		{
+			case COMPOUND_STMT:
+				{
+					CompoundStmt* comp = body.as(COMPOUND_STMT);
+					foreach (stmt : comp.statements)
+					{
+						switch (stmt.kind)
+						{
+							case VAR_DECL:
+								VarDecl* local = stmt.as(VAR_DECL);
+								Cursor field_cursor = { sec, stmt };
+								String name = field_cursor.spelling(tmem) ?? "";
+                                if (ctx.prefix.len == 0 || name.starts_with(ctx.prefix))
+                                {
+                                    items.push({ .label = name, .kind = VARIABLE, .detail = "Local Variable" });
+                                }
+							default:
+								break;
+						}
+					}
+				}
+			default: break;
+		}
+    }
+    else if (parent.kind == MACRO_DECL)
+    {
+        MacroDecl* mac = parent.as(MACRO_DECL);
+        foreach (param_node : mac.params)
+        {
+            VarDecl* param = param_node.as(VAR_DECL);
+			Cursor cursor = { sec, param_node };
+			String name = cursor.spelling(tmem) ?? "";
+            items.push({ .label = name, .kind = VARIABLE, .detail = "Macro Argument" });
+        }
+    }
+}
+
 fn void provide_keywords(Context* ctx, List{CompletionItem}* items)
 {
-    $foreach $kw : Keywords::values:
-        if (ctx.prefix.len == 0 || $kw.name.starts_with(ctx.prefix))
+    if (ctx.access != NONE) return;
+
+    foreach (kw : Keywords::values)
+	{
+		switch (ctx.scope)
+        {
+            case GLOBAL:
+                if (!kw.is_top_level()) continue; 
+                break;
+
+            case CONTAINER:
+                if (!kw.is_container()) continue;
+                break;
+
+            case EXECUTION:
+                if (!kw.is_statement() && !kw.is_expression()) continue;
+                break;
+                
+            case TYPE_ASSIGNMENT:
+                if (!kw.is_value()) continue;
+                break;
+        }
+        if (ctx.prefix.len == 0 || kw.name.starts_with(ctx.prefix))
         {
             items.push({
-                .label = $kw.name,
-                .documentation = $kw.docs,
+                .label = kw.name,
+                .documentation = kw.docs,
                 .kind = KEYWORD,
             });
         }
-    $endforeach
+	}
 }
