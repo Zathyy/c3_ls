@@ -54,8 +54,8 @@ fn void publish(Allocator allocator, ParseResult* result)
 	{
 		diags.push({
 			.range = {
-				.start = { .line = (uint) err.loc.line - 1, .character = (uint) err.loc.column - 1 },
-				.end = { .line = (uint) err.loc.line - 1, .character = (uint) err.loc.column - 1 + (uint) err.token.len },
+				.start = { .line = (uint) err.loc.line, .character = (uint) err.loc.column },
+				.end = { .line = (uint) err.loc.line, .character = (uint) err.loc.column + (uint) err.token.len },
 			},
 			.severity = to_severity(err.level),
 			.message = err.message,
