@@ -169,3 +169,89 @@ enum Keywords : int (String name, String docs)
 	VAR       { "var", "" },
 	WHILE     { "while", "" },
 }
+
+fn bool Keywords.is_top_level(self)
+{
+	switch (self)
+	{
+		case MODULE:
+		case IMPORT:
+		case ALIAS:
+		case ATTRDEF:
+		case BITSTRUCT:
+		case CONSTDEF:
+		case STRUCT:
+		case CONST:
+		case ENUM:
+		case EXTERN:
+		case FAULTDEF:
+		case FN:
+		case TLOCAL:
+		case MACRO:
+		case INTERFACE:
+		case TYPEDEF:
+		case UNION:
+			return true;
+		default:
+			return false;
+	}
+}
+
+fn bool Keywords.is_container(self)
+{
+	switch (self)
+	{
+		case INLINE:
+		case TLOCAL:
+			return true;
+		default:
+			return false;
+	}
+}
+
+fn bool Keywords.is_statement(self)
+{
+	switch (self)
+	{
+		case ASSERT:
+		case ASM:
+		case CONST:
+		case VAR:
+		case IF:
+		case FOR:
+		case WHILE:
+		case FOREACH:
+		case FOREACH_R:
+		case DEFER:
+		case LENGTHOF:
+			return true;
+		default:
+			return false;
+	}
+}
+
+fn bool Keywords.is_expression(self)
+{
+	switch (self)
+	{
+		case TRUE:
+		case FALSE:
+		case NULL:
+			return true;
+		default:
+			return false;
+	}
+}
+
+fn bool Keywords.is_value(self)
+{
+	switch (self)
+	{
+		case TRUE:
+		case FALSE:
+		case NULL:
+			return true;
+		default: 
+			return false;
+	}
+}
