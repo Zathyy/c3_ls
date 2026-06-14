@@ -1,8 +1,8 @@
 module lsp::analysis::completion;
 
-import parser::workspace;
-import parser::ast;
-import parser::cursor;
+import analyzer::workspace;
+import analyzer::core;
+import analyzer::cursor;
 
 import std::collections::list;
 
@@ -266,6 +266,8 @@ fn void provide_locals(Context* ctx, List{CompletionItem}* items)
         MacroDecl* mac = parent.as(MACRO_DECL);
         foreach (param_node : mac.params)
         {
+			if (param_node.kind != VAR_DECL) continue;
+
             VarDecl* param = param_node.as(VAR_DECL);
 			Cursor cursor = { sec, param_node };
 			String name = cursor.spelling(tmem) ?? "";

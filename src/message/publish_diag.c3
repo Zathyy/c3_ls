@@ -2,7 +2,8 @@ module lsp::msg_handler::publish_diag;
 
 import std::collections::list;
 
-import parser::parser::error;
+import analyzer::workspace;
+import analyzer::core;
 import lsp::io_handler;
 import lsp::translator;
 import dessert;
@@ -45,38 +46,43 @@ fn MessageSeverity to_severity(LogPriority prio)
 	return MessageSeverity.HINT;
 }
 
-fn void publish(Allocator allocator, ParseResult* result)
+fn void publish(Allocator allocator, ProcessResult* result)
 {
 	List{LspDiagnostic} diags;
 	diags.tinit();
 
-	foreach (i, err : result.errors)
+	foreach (section : result.errored_sections)
 	{
-		diags.push({
-			.range = {
-				.start = { .line = (uint) err.loc.line, .character = (uint) err.loc.column },
-				.end = { .line = (uint) err.loc.line, .character = (uint) err.loc.column + (uint) err.token.len },
-			},
-			.severity = to_severity(err.level),
-			.message = err.message,
-			.source = "c3-parser"
-		});
-	}
-
-	Uri file_uri = uri::from_file_path(tmem, result.path);
-	DocumentUri formatted_uri = (DocumentUri)file_uri.to_raw_string(tmem);
-
-	LspMessage res = {
-		.rpc = "2.0",
-		.method = PUB_DIAG,
-		.params.pub_diag = {
-			.uri = formatted_uri,
-			.diagnostics = diags.to_tarray(),
+		foreach (diag : section.diagnostics)
+		{
+			diags.push({
+				.range = {
+					.start = { .line = (uint)diag.start_loc.line, .character = (uint)diag.end_loc.column },
+					.end = { .line = (uint)diag.start_loc.line, .character = (uint)diag.end_loc.column },
+				},
+				.severity = to_severity(diag.level),
+				.message = diag.message,
+				.source = "c3-parser"
+			});
 		}
-	};
 
-	String response_json = translator::encode(res, allocator);
+		Uri file_uri = uri::from_file_path(tmem, section.source_file.file_path);
+		DocumentUri formatted_uri = (DocumentUri)file_uri.to_raw_string(tmem);
 
-	log::debug("complete response: %s", response_json);
-	io_handler::write(response_json);
+		LspMessage res = {
+			.rpc = "2.0",
+			.method = PUB_DIAG,
+			.params.pub_diag = {
+				.uri = formatted_uri,
+				.diagnostics = diags.to_tarray(),
+			}
+		};
+
+		String response_json = translator::encode(res, allocator);
+
+		log::debug("complete response: %s", response_json);
+		io_handler::write(response_json);
+
+		diags.clear();
+	}
 }

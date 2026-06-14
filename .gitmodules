@@ -4,6 +4,6 @@
 [submodule "lib/dessert.c3l"]
 	path = lib/dessert.c3l
 	url = https://github.com/Ecoral360/dessert.c3l.git
-[submodule "lib/c3_parser.c3l"]
-	path = lib/c3_parser.c3l
-	url = https://github.com/joshring/c3_parser
+[submodule "lib/c3-analyzer.c3l"]
+	path = lib/c3-analyzer.c3l
+	url = https://github.com/Zathyy/c3-analyzer.git

@@ -6,7 +6,8 @@ import std::collections::map;
 import lsp::msg_handler::publish_diag;
 import dessert;
 import derive;
-import parser;
+import analyzer::core;
+import analyzer::workspace;
 import uri;
 
 struct LspFile
@@ -90,20 +91,18 @@ fn void LspProject.open_file(&self, TextDocumentItem document, bool is_std_lib =
 
     self.files[lookup_key] = ((LspFile){}).new(self.allocator, file_uri, document.text);
 
-	ParseResult? result;
-	if (is_std_lib)
-	{
-		result = parser::parse_file(&self.workspace, lookup_key);
-	}
-	else
-	{
-		result = parser::parse(&self.workspace, lookup_key, document.text);
-	}
+	FileInput file = {
+		.source_text = document.text,
+		.uri = lookup_key
+	};
+
+	ProcessResult? result = result = workspace::process(&self.workspace, self.allocator, file);
     if (catch err = result)
     {   
         log::error("Parsing failure on target file: %s (Error: %s)", lookup_key, err);
 		return;
     }
+	defer result.free();
 
 	publish_diag::publish(self.allocator, &result);
 }
@@ -138,12 +137,17 @@ fn void LspProject.change_file(&self, DidChangeParams params)
 
 	file.text = params.content_changes[0].text.copy(self.allocator);
 	file.uri = file_uri;
-	ParseResult? result = parser::parse(&self.workspace, lookup_key, file.text);
+	FileInput input = {
+		.source_text = file.text,
+		.uri = lookup_key
+	};
+	ProcessResult? result = result = workspace::process(&self.workspace, self.allocator, input);
     if (catch err = result)
     {   
         log::error("Parsing failure on target file: %s (Error: %s)", lookup_key, err);
 		return;
     }
+	defer result.free();
 	
 	publish_diag::publish(self.allocator, &result);
 }

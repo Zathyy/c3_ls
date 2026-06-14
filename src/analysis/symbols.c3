@@ -1,7 +1,7 @@
 module lsp::analysis;
 
-import parser::ast;
-import parser::workspace;
+import analyzer::core;
+import analyzer::workspace;
 
 struct SymbolSearchResult
 {

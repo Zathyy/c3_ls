@@ -1,6 +1,6 @@
 module lsp::analysis;
 
-import parser::ast;
+import analyzer::core;
 
 import std::collections::list;
 

@@ -2,7 +2,7 @@
   "langrev": "1",
   "warnings": ["no-unused"],
   "dependency-search-paths": ["lib"],
-  "dependencies": ["dessert", "c3_parser", "seali"],
+  "dependencies": ["dessert", "c3_analyzer", "seali"],
   "authors": ["m0tholith", "Zathy", "ecoral360"],
   "version": "0.1.0",
   "sources": ["src/**"],
@@ -11,7 +11,7 @@
   "targets": {
     "c3_ls": {
       "type": "executable",
-      "features": ["PARSER_LIB"],
+      "features": ["ANALYZER_LIB"],
     },
   },
   "cpu": "generic",
