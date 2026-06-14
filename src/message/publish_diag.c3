@@ -57,8 +57,8 @@ fn void publish(Allocator allocator, ProcessResult* result)
 		{
 			diags.push({
 				.range = {
-					.start = { .line = (uint)diag.start_loc.line, .character = (uint)diag.end_loc.column },
-					.end = { .line = (uint)diag.start_loc.line, .character = (uint)diag.end_loc.column },
+					.start = { .line = (uint)diag.start_loc.line, .character = (uint)diag.start_loc.column },
+					.end = { .line = (uint)diag.end_loc.line, .character = (uint)diag.end_loc.column },
 				},
 				.severity = to_severity(diag.level),
 				.message = diag.message,
