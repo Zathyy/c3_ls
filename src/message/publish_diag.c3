@@ -62,7 +62,7 @@ fn void publish(Allocator allocator, ProcessResult* result)
 				},
 				.severity = to_severity(diag.level),
 				.message = diag.message,
-				.source = "c3-parser"
+				.source = "c3-analyzer"
 			});
 		}
 
