@@ -54,7 +54,7 @@ fn void LspProject.init(&self, Allocator allocator)
 {
 	self.allocator = allocator;
 	self.files.init(allocator);
-	self.workspace.init(allocator);
+	self.workspace.init(allocator, { .use_sema = true });
 }
 
 fn void LspProject.free(&self)
