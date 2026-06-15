@@ -5,6 +5,7 @@ import analyzer::core;
 import analyzer::cursor;
 
 import std::collections::list;
+import std::collections::map;
 
 import uri;
 
@@ -66,7 +67,7 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
 
 
     ctx.access = NONE;
-    ctx.base_identifier = "";
+    ctx.base_identifier = "";	
 
 	Cursor current_cursor = ctx.ws.find_at_location(uri.path, loc);
     
@@ -138,7 +139,7 @@ fn void provide_member_access(Context* ctx, List{CompletionItem}* items)
         }
         case INSTANCE:
         {
-            /*
+			/*
             Node* var_decl = find_local_var_declaration(ctx, ctx.base_identifier);
             if (!var_decl) return;
 
@@ -160,10 +161,27 @@ fn void provide_member_access(Context* ctx, List{CompletionItem}* items)
                     });
                 }
             }
+			*/
+
+			HashMap{String, Node*}*? map = ctx.ws.registry.get_all_methods(ctx.base_identifier);
+			if (catch map) return;
+			if (!map) return;
+
+			map.@each(; name, node)
+			{
+				if (ctx.prefix.len == 0 || name.starts_with(ctx.prefix))
+                {
+                    items.push({
+                        .label = name,
+                        .kind = METHOD,
+                        .detail = string::tformat("method of %s", ctx.base_identifier)
+                    });
+                }
+			};
+
             // Block general keywords/globals
             ctx.prefix = "\0_CONTEXT_LOCK_";
             break;
-            */
         }
         default:
     }
