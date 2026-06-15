@@ -15,6 +15,7 @@ struct LspShutdownResponse
 {
 	String jsonrpc;
 	int id;
+	int* result;
 }
 
 fn void response(Allocator allocator, LspMessage* message) @inline
@@ -22,6 +23,7 @@ fn void response(Allocator allocator, LspMessage* message) @inline
 	LspShutdownResponse response = {
 		.jsonrpc = message.rpc,
 		.id = message.id.get() ?? -1,
+		.result = null
 	};
 
 	String response_json = translator::encode(response, allocator);
