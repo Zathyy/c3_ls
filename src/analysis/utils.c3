@@ -82,6 +82,33 @@ fn ScopeKind find_scope(Context* ctx, int cursor_pos)
     return GLOBAL;
 }
 
+<*
+*>
+fn ScopeKind find_node(Context* ctx, int cursor_pos)
+{
+    if (!ctx.top_level_node) return GLOBAL;
+	Node* node = ctx.top_level_node;
+	if (cursor_pos >= node.offset.start && cursor_pos <= node.offset.end)
+	{    
+		switch (node.kind)
+		{
+            case IMPORT_DECL:
+                return IMPORT;
+			case FN_DECL:
+			case MACRO_DECL:
+				return EXECUTION;
+			case STRUCT_DECL:
+				return CONTAINER;
+
+			default:
+				break;
+		}
+	}
+    
+
+    return GLOBAL;
+}
+
 fn void inject_type_properties(Context* ctx, List{CompletionItem}* items, NodeKind type_kind)
 {
     items.push({ .label = "alignment", .kind = PROPERTY, .detail = "sz", .documentation = "Alignment of the type in bytes." });

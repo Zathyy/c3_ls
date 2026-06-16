@@ -12,6 +12,9 @@ import dessert;
 import derive;
 import lsp::io_handler;
 
+import lsp::analysis;
+import uri;
+
 enum HoverContentKind
 {
     MARKED_STRING,
@@ -29,13 +32,19 @@ union MarkupContentUnion
 $expand(derive(LspHoverResponse::name, dessert::serialize));
 struct LspHoverResponse @DStruct({ .rename_all = CAMEL_CASE })
 {	
-	HoverContentKind content_kind @DField({ .skip = true });
-   	MarkupContentUnion contents @DField({ .tagged = { .by = "content_kind", .inlined = true } });
-	<*
+	String jsonrpc;
+	int id;
+
+	struct result 
+	{
+		HoverContentKind content_kind @DField({ .skip = true });
+		MarkupContentUnion contents @DField({ .tagged = { .by = "content_kind", .inlined = true } });
+		<*
 		An optional range is a range inside a text document
-	 	that is used to visualize a hover, e.g. by changing the background color.
+		that is used to visualize a hover, e.g. by changing the background color.
 	*>
-	Maybe{LspRange} range;
+		Maybe{LspRange} range;
+	}
 }
 
 $expand(derive(LspServerCapabilities::name, dessert));
@@ -45,15 +54,37 @@ struct LspServerCapabilities @DStruct({ .rename_all = CAMEL_CASE })
 	MarkupKind[] content_format;
 }
 
-fn void response(Allocator allocator, LspMessage* message)
+fn void response(Allocator allocator, LspProject* project, LspMessage* message)
 {
-	LspHoverResponse response = {
-		.content_kind = MARKED_STRING,
-		.contents = {
-			.marked_string = {
+	log::warn("URI: %s", message.params.hover.document.uri);
+	Uri? file_uri = uri::parse(tmem, message.params.hover.document.uri);
+	
+	if (catch err = file_uri)
+	{
+		log::error("Failed to parse uri: %s", err);
+		return;
+	}
+	LspPosition pos = message.params.hover.position;
 
+	String? hover = hover::hover(project, file_uri, pos);
+	if (catch err = hover)
+	{
+		log::error("Failed to hover : %s", err);
+		return;
+	}
+
+	LspHoverResponse response = {
+		.jsonrpc = message.rpc,
+		.id = message.id.get() ?? -1,
+		.result = {
+			.content_kind = MARKUP_CONTENT,
+			.contents = {
+				.markup_content = {
+					.kind = PLAIN_TEXT,
+					.value = hover,
+				},
 			},
-		},
+		}
 	};
 	String response_json = translator::encode(response, allocator);
 

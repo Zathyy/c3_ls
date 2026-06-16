@@ -66,6 +66,8 @@ fn void dispatch(LspMessage* message)
 			project.close_file(message.params.did_close.document.uri);
 		case COMPLETION:
 			completion::response(tmem, &project, message);
+		case HOVER:
+			hover::response(tmem, &project, message);
 		case SHUTDOWN:
 			shutdown::response(tmem, message);
 		case EXIT:

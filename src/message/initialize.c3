@@ -45,7 +45,8 @@ fn void response(Allocator allocator, LspMessage* message)
                     .completion_item = {
                         .label_detail_support = true
                     }
-				}
+				},
+				.hover_provider = true,
 			},
 			.serverInfo = {
 				.name = "c3_ls",

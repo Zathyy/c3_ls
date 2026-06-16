@@ -136,7 +136,10 @@ struct DidCloseParams
 $expand(derive(HoverParams::name, dessert));
 struct HoverParams
 {
-	DocumentUri document @DField({ .rename = "textDocument/hover" });
+	struct document @DField({ .rename = "textDocument" })
+	{
+		DocumentUri uri;
+	}
 	LspPosition position;
 }
 
