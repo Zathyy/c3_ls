@@ -7,6 +7,7 @@ import analyzer::cursor;
 import std::collections::list;
 import std::collections::map;
 
+
 import uri;
 
 struct Context
@@ -18,20 +19,12 @@ struct Context
 	Allocator allocator;
 	String prefix;
 	ScopeKind scope;
-    Node* enclosing_node;
+    Node* leaf_node;
+	Node* top_level_node;
 
     LspAccessKind access;
     String base_identifier; // Stores 'variable' or 'Type' string found before the operator
 }
-
-alias CompletionProvider = fn void(Context* ctx, List{CompletionItem}* items);
-
-const CompletionProvider[] PROVIDERS = {
-	&provide_member_access,
-	&provide_locals,
-    &provide_keywords,
-    &provide_global
-};
 
 fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
 {
@@ -65,23 +58,23 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
 
     log::info("resolve - parser location: %s:%s", res_loc.line + 1, res_loc.column + 1);
 
-
     ctx.access = NONE;
     ctx.base_identifier = "";	
 
-	Cursor current_cursor = ctx.ws.find_at_location(uri.path, loc);
+	Cursor current_cursor = ctx.ws.find_top_level_statement_at_location(uri.path, loc);
+	ctx.top_level_node = current_cursor.node;
     
-	if (current_cursor.section != null && current_cursor.node != null)
+	if LEAF: (current_cursor.is_valid())
 	{
 		ctx.section = current_cursor.section;
 
-        Node* deep_leaf = cursor::find_innermost_node(current_cursor.node, (int)offset, sf);
+        Cursor deep_leaf_cursor = ctx.ws.find_leaf_at_location(uri.path, loc);
 
-        if (deep_leaf != null)
-        {
-            current_cursor.node = deep_leaf;
-        }
-		log::warn("node_kind: %s", current_cursor.node.kind.description);
+        if (!deep_leaf_cursor.is_valid()) break LEAF;
+        
+		ctx.leaf_node = deep_leaf_cursor.node;
+
+		log::warn("node_kind: %s", ctx.leaf_node.kind.description);
 
 		if (current_cursor.is_access_node())
 		{
@@ -105,18 +98,35 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
 		}
 	}
 	else
-	{   
+    {   
         log::info("failed to find a section");
-		ctx.section = file_sections.last()!;
-	}   
-	ctx.scope = analysis::find_scope(&ctx, (int)offset, &ctx.enclosing_node);
+        ctx.section = file_sections.last()!;
+    }   
+    ctx.scope = analysis::find_scope(&ctx, (int)offset);
 
     log::info("Scope: %s", ctx.scope.description);
     log::info("base_ident: %s", ctx.base_identifier);
 
-	foreach (provider : PROVIDERS)
+    switch (ctx.scope)
     {
-        provider(&ctx, &items);
+        case IMPORT:
+            provide_imports(&ctx, &items);
+            break;
+        case GLOBAL:
+            provide_global(&ctx, &items);
+            provide_keywords(&ctx, &items);
+            break;
+        case CONTAINER:
+            provide_locals(&ctx, &items);
+            provide_global(&ctx, &items);
+            provide_keywords(&ctx, &items);
+            break;
+        case EXECUTION:
+            provide_locals(&ctx, &items);
+            provide_global(&ctx, &items);
+            provide_keywords(&ctx, &items);
+            break;
+        default:
     }
 
 	return items.array_view();
@@ -222,7 +232,8 @@ fn void provide_global(Context* ctx, List{CompletionItem}* items)
                     .kind = analysis::completion_kind_from_node(node),
                     // .insert_text = cursor.shortened_path(ctx.ws),
                     .detail = name,
-                    .documentation = string::tformat("Type declared in module '%s'", name)
+                    .documentation = string::tformat("Type declared in module '%s'", name),
+                    .sort_text = string::tformat("0002_%s", name)
                 });
             }
         }
@@ -234,7 +245,7 @@ fn void provide_locals(Context* ctx, List{CompletionItem}* items)
 	if (ctx.scope != EXECUTION) return;
     if (ctx.access != NONE) return;
 
-	Node* parent = ctx.enclosing_node;
+	Node* parent = ctx.top_level_node;
     ModuleSection* sec = ctx.section;
     if (!parent) 
     {
@@ -250,7 +261,12 @@ fn void provide_locals(Context* ctx, List{CompletionItem}* items)
 			VarDecl* param = param_node.as(VAR_DECL);
 			Cursor cursor = { sec, param_node };
 			String name = cursor.spelling(tmem) ?? "";
-            items.push({ .label = name, .kind = VARIABLE, .detail = "Fn Argument" });
+            items.push({ 
+                .label = name, 
+                .kind = VARIABLE, 
+                .detail = string::tformat("(parameter) %s", name),
+                .sort_text = string::tformat("0001_%s", name)
+            });
 		}
         
 		Node* body = func.body;
@@ -269,7 +285,12 @@ fn void provide_locals(Context* ctx, List{CompletionItem}* items)
 								String name = field_cursor.spelling(tmem) ?? "";
                                 if (ctx.prefix.len == 0 || name.starts_with(ctx.prefix))
                                 {
-                                    items.push({ .label = name, .kind = VARIABLE, .detail = "Local Variable" });
+                                    items.push({ 
+										.label = name, 
+										.kind = VARIABLE, 
+										.detail = string::tformat("(local) %s", name),
+										.sort_text = string::tformat("0001_%s", name)
+										});
                                 }
 							default:
 								break;
@@ -317,6 +338,7 @@ fn void provide_keywords(Context* ctx, List{CompletionItem}* items)
             case TYPE_ASSIGNMENT:
                 if (!kw.is_value()) continue;
                 break;
+            default:
         }
         if (ctx.prefix.len == 0 || kw.name.starts_with(ctx.prefix))
         {
@@ -324,7 +346,32 @@ fn void provide_keywords(Context* ctx, List{CompletionItem}* items)
                 .label = kw.name,
                 .documentation = kw.docs,
                 .kind = KEYWORD,
+				.sort_text = string::tformat("0010_%s", kw.name),
             });
         }
 	}
+}
+
+fn void provide_imports(Context* ctx, List{CompletionItem}* items)
+{
+    HashMap{String, Module*} modules = ctx.ws.modules;
+
+    modules.@each(; name, mod)
+    {
+        do SCOPE:
+        {
+            if (ctx.prefix.len > 0 && !name.starts_with(ctx.prefix))
+            {
+                break SCOPE;
+            }
+
+            items.push({
+                .label = name,
+                .kind = MODULE,
+                .detail = "Module",
+                .sort_text = string::tformat("0001_%s", name),
+                .documentation = string::tformat("Import the `%s` module into this file context.", name)
+            });
+        };
+    };
 }

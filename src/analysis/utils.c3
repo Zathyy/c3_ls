@@ -57,30 +57,27 @@ fn CompletionItemKind completion_kind_from_node(Node* node)
 
 <*
 *>
-fn ScopeKind find_scope(Context* ctx, int cursor_pos, Node** enclosing_node)
+fn ScopeKind find_scope(Context* ctx, int cursor_pos)
 {
-    *enclosing_node = null;
+    if (!ctx.top_level_node) return GLOBAL;
+	Node* node = ctx.top_level_node;
+	if (cursor_pos >= node.offset.start && cursor_pos <= node.offset.end)
+	{    
+		switch (node.kind)
+		{
+            case IMPORT_DECL:
+                return IMPORT;
+			case FN_DECL:
+			case MACRO_DECL:
+				return EXECUTION;
+			case STRUCT_DECL:
+				return CONTAINER;
 
-    foreach (node : ctx.section.nodes)
-    {
-        if (cursor_pos >= node.start_token && cursor_pos <= node.end_token)
-        {
-            *enclosing_node = node;
+			default:
+				break;
+		}
+	}
     
-            switch (node.kind)
-            {
-                case FN_DECL:
-                case MACRO_DECL:
-                    return EXECUTION;
-
-                case STRUCT_DECL:
-                    return CONTAINER;
-
-                default:
-                    break;
-            }
-        }
-    }
 
     return GLOBAL;
 }
