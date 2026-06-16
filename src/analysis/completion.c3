@@ -374,4 +374,6 @@ fn void provide_imports(Context* ctx, List{CompletionItem}* items)
             });
         };
     };
+
+	ctx.prefix = "\0_CONTEXT_LOCK_";
 }
