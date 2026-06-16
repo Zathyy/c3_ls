@@ -39,7 +39,7 @@ fn void response(Allocator allocator, LspMessage* message)
 				},
 				.completion_provider = {
 					.trigger_characters = {
-						".", ":", "@"
+						".", ":", "@", " "
 					},
                     .resolve_provider = true,
                     .completion_item = {
