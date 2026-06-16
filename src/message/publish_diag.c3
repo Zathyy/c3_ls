@@ -46,13 +46,25 @@ fn MessageSeverity to_severity(LogPriority prio)
 	return MessageSeverity.HINT;
 }
 
-fn void publish(Allocator allocator, ProcessResult* result)
+fn void publish(Allocator allocator, Uri uri, ProcessResult* result)
 {
 	List{LspDiagnostic} diags;
 	diags.tinit();
 
+	bool active_file_had_errors = false;
+	String active_uri = string::tformat("%s", uri);
+
+
 	foreach (section : result.errored_sections)
 	{
+		Uri file_uri = uri::from_file_path(tmem, section.source_file.file_path);
+		DocumentUri formatted_uri = (DocumentUri)file_uri.to_raw_string(tmem);
+
+		if (formatted_uri == (DocumentUri)active_uri)
+		{
+			active_file_had_errors = true;
+		}
+
 		foreach (diag : section.diagnostics)
 		{
 			diags.push({
@@ -66,9 +78,6 @@ fn void publish(Allocator allocator, ProcessResult* result)
 			});
 		}
 
-		Uri file_uri = uri::from_file_path(tmem, section.source_file.file_path);
-		DocumentUri formatted_uri = (DocumentUri)file_uri.to_raw_string(tmem);
-
 		LspMessage res = {
 			.rpc = "2.0",
 			.method = PUB_DIAG,
@@ -79,10 +88,27 @@ fn void publish(Allocator allocator, ProcessResult* result)
 		};
 
 		String response_json = translator::encode(res, allocator);
-
-		log::debug("complete response: %s", response_json);
+		log::debug("Sending diagnostics for errored section: %s", response_json);
 		io_handler::write(response_json);
 
 		diags.clear();
 	}
+	
+	if (!active_file_had_errors)
+	{
+		LspMessage res = {
+			.rpc = "2.0",
+			.method = PUB_DIAG,
+			.params.pub_diag = {
+				.uri = (DocumentUri)active_uri,
+				.diagnostics = diags.to_tarray(), // Safe empty layout payload []
+			}
+		};
+	
+		String response_json = translator::encode(res, allocator);
+		log::debug("Clearing diagnostics for active file: %s", response_json);
+		io_handler::write(response_json);
+	}
+
+	diags.clear();
 }

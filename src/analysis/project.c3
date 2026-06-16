@@ -104,7 +104,7 @@ fn void LspProject.open_file(&self, TextDocumentItem document, bool is_std_lib =
     }
 	defer result.free();
 
-	publish_diag::publish(self.allocator, &result);
+	publish_diag::publish(self.allocator, file_uri, &result);
 }
 
 fn void LspProject.change_file(&self, DidChangeParams params)
@@ -149,7 +149,7 @@ fn void LspProject.change_file(&self, DidChangeParams params)
     }
 	defer result.free();
 	
-	publish_diag::publish(self.allocator, &result);
+	publish_diag::publish(self.allocator, file_uri, &result);
 }
 
 fn void LspProject.close_file(&self, DocumentUri document)
