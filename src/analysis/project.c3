@@ -17,26 +17,6 @@ struct LspFile
 	int version;
 }
 
-fn LspFile* LspFile.init(&self, Allocator allocator, Uri uri, String text)
-{
-	self = alloc::new(allocator, LspFile, {
-		.uri = uri,
-		.text = text.copy(allocator),
-		.version = 0,
-	});
-	return self;
-}
-
-macro LspFile LspFile.new(self, Allocator allocator, Uri uri, String text)
-{
-	self = {
-		.uri = uri,
-		.text = text.copy(allocator),
-		.version = 0,
-	};
-	return self;
-}
-
 fn void LspFile.free(&self)
 {
 	mem::free(self.text);
@@ -45,7 +25,7 @@ fn void LspFile.free(&self)
 
 struct LspProject
 {
-	HashMap{String, LspFile} files;
+	HashMap{String, LspFile*} files;
 	Workspace workspace;
 	Allocator allocator;
 }
@@ -60,9 +40,10 @@ fn void LspProject.init(&self, Allocator allocator)
 fn void LspProject.free(&self)
 {
 	self.workspace.free();
-	self.files.@each(; String uri, LspFile file)
+	self.files.@each(; String uri, LspFile* file)
 	{
 		file.free();
+		alloc::free(self.allocator, file);
 	};
 	self.files.free();
 }
@@ -70,38 +51,45 @@ fn void LspProject.free(&self)
 fn void LspProject.open_file(&self, TextDocumentItem document, bool is_std_lib = false)
 {
 	String raw_uri = document.uri;
-	
+
 	log::debug("Registering document stream via raw tracking token: %s", raw_uri);
-    
-    Uri? file_uri = uri::parse(self.allocator, raw_uri);
+
+	Uri? file_uri = uri::parse(self.allocator, raw_uri);
 	if (catch err = file_uri) 
 	{
-        log::error("Malformed URI received (%s)", raw_uri);
-        return;
-    };
+		log::error("Malformed URI received (%s)", raw_uri);
+		return;
+	};
 
-    String lookup_key = file_uri.path;
+	String lookup_key = file_uri.path;
 
-    if (self.files.has_key(lookup_key))
-    {
-        log::warn("File %s is already tracking in workspace", lookup_key);
-        file_uri.free();
-        return;
-    }
+	if (self.files.has_key(lookup_key))
+	{
+		log::warn("File %s is already tracking in workspace", lookup_key);
+		file_uri.free();
+		return;
+	}
+	
+	LspFile* lsp_file = alloc::new(self.allocator, LspFile);
+	*lsp_file = { 
+		.uri = file_uri, 
+		.text = document.text.copy(self.allocator),
+		.version = 1,
+	};
 
-    self.files[lookup_key] = ((LspFile){}).new(self.allocator, file_uri, document.text);
+	self.files[lookup_key] = lsp_file;
 
 	FileInput file = {
-		.source_text = document.text,
+		.source_text = lsp_file.text,
 		.uri = lookup_key
 	};
 
 	ProcessResult? result = result = workspace::process(&self.workspace, self.allocator, file);
-    if (catch err = result)
-    {   
-        log::error("Parsing failure on target file: %s (Error: %s)", lookup_key, err);
+	if (catch err = result)
+	{   
+		log::error("Parsing failure on target file: %s (Error: %s)", lookup_key, err);
 		return;
-    }
+	}
 	defer result.free();
 
 	publish_diag::publish(self.allocator, file_uri, &result);
@@ -111,45 +99,44 @@ fn void LspProject.change_file(&self, DidChangeParams params)
 {
 	String raw_uri = params.document.uri;
 	log::debug("Registering document stream via raw tracking token: %s", raw_uri);
-    
-    Uri? file_uri = uri::parse(self.allocator, raw_uri);
+
+	Uri? file_uri = uri::parse(tmem, raw_uri);
 	if (catch err = file_uri) 
 	{
-        log::error("Malformed URI received (%s)", raw_uri);
-        return;
-    };
-	
-    String lookup_key = file_uri.path;
+		log::error("Malformed URI received (%s)", raw_uri);
+		return;
+	};
 
-    if (!self.files.has_key(lookup_key))
-    {
-        log::warn("File %s is not already tracking in workspace", lookup_key);
-        file_uri.free();
-        return;
-    } 
-	
-	LspFile* file = (&self.files[lookup_key]);
+	String lookup_key = file_uri.path;
+
+	if (!self.files.has_key(lookup_key))
+	{
+		log::warn("File %s is not already tracking in workspace", lookup_key);
+		return;
+	} 
+
+	LspFile* file = self.files.get(lookup_key) ?? null;
+	if (!file) return;
 
 	if (file.text.ptr != null)
-    {
-        mem::free(file.text); 
-    }
+	{
+		mem::free(file.text); 
+	}
 
 	file.text = params.content_changes[0].text.copy(self.allocator);
-	file.uri = file_uri;
 	FileInput input = {
 		.source_text = file.text,
 		.uri = lookup_key
 	};
 	ProcessResult? result = result = workspace::process(&self.workspace, self.allocator, input);
-    if (catch err = result)
-    {   
-        log::error("Parsing failure on target file: %s (Error: %s)", lookup_key, err);
+	if (catch err = result)
+	{   
+		log::error("Parsing failure on target file: %s (Error: %s)", lookup_key, err);
 		return;
-    }
+	}
 	defer result.free();
-	
-	publish_diag::publish(self.allocator, file_uri, &result);
+
+	publish_diag::publish(self.allocator, file.uri, &result);
 }
 
 fn void LspProject.close_file(&self, DocumentUri document)
@@ -158,16 +145,20 @@ fn void LspProject.close_file(&self, DocumentUri document)
 	Uri? query_uri = uri::parse(tmem, raw_uri);
 	if (catch query_uri) return;
 
-    String lookup_key = query_uri.path;
+	String lookup_key = query_uri.path;
 
 	log::debug("Deregistering file: %s", lookup_key);
 
 	if (!self.files.has_key(lookup_key))
-    {
-        log::error("Attempted to drop non-existent file path identifier (%s)", lookup_key);
-        return;
-    }
+	{
+		log::error("Attempted to drop non-existent file path identifier (%s)", lookup_key);
+		return;
+	}
 
-    (&self.files[lookup_key]).free();
-    self.files.remove(lookup_key);
+	LspFile* file = self.files.get(lookup_key) ?? null;
+	if (!file) return;
+
+	file.free();
+	alloc::free(self.allocator, file);
+	self.files.remove(lookup_key);
 }
