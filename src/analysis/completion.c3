@@ -3,6 +3,7 @@ module lsp::analysis::completion;
 import analyzer::workspace;
 import analyzer::core;
 import analyzer::cursor;
+import analyzer::sema;
 
 import std::collections::list;
 import std::collections::map;
@@ -35,50 +36,50 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
 		.ws = &project.workspace,
 		.allocator = tmem,
 	};
-    
-	Location loc = { 
-        .line = (sz)ctx.position.line,
-        .column = (sz)ctx.position.character
-    };
 
-    log::info("resolve - editor location: %s:%s", loc.line + 1, loc.column + 1);
-    
+	Location loc = { 
+		.line = (sz)ctx.position.line,
+		.column = (sz)ctx.position.character
+	};
+
+	log::info("resolve - editor location: %s:%s", loc.line + 1, loc.column + 1);
+
 	List{CompletionItem} items; items.init(tmem);
-    List{ModuleSection*} file_sections = ctx.ws.find_section_by_path(uri.path);
-    if (file_sections.len() == 0)
-    {
-        return items.array_view(); // No tracked sections for this file yet
-    }
-    
+	List{ModuleSection*} file_sections = ctx.ws.find_section_by_path(uri.path);
+	if (file_sections.len() == 0)
+	{
+		return items.array_view(); // No tracked sections for this file yet
+	}
+
 	SourceFile* sf = file_sections.get(0).source_file;
 	sz offset = sf.line_map.get_offset(sf.source, loc);
 	ctx.prefix = analysis::extract_prefix(sf.source, (sz)offset);
 
-    Location res_loc = sf.line_map.resolve(offset);
+	Location res_loc = sf.line_map.resolve(offset);
 
-    log::info("resolve - parser location: %s:%s", res_loc.line + 1, res_loc.column + 1);
+	log::info("resolve - parser location: %s:%s", res_loc.line + 1, res_loc.column + 1);
 
-    ctx.access = NONE;
-    ctx.base_identifier = "";	
+	ctx.access = NONE;
+	ctx.base_identifier = "";	
 
 	Cursor current_cursor = ctx.ws.find_top_level_statement_at_location(uri.path, loc);
 	ctx.top_level_node = current_cursor.node;
-    
+
 	if LEAF: (current_cursor.is_valid())
 	{
 		ctx.section = current_cursor.section;
 
-        Cursor deep_leaf_cursor = ctx.ws.find_leaf_at_location(uri.path, loc);
+		Cursor deep_leaf_cursor = ctx.ws.find_leaf_at_location(uri.path, loc);
 
-        if (!deep_leaf_cursor.is_valid()) break LEAF;
-        
+		if (!deep_leaf_cursor.is_valid()) break LEAF;
+		
 		ctx.leaf_node = deep_leaf_cursor.node;
 
 		log::warn("node_kind: %s", ctx.leaf_node.kind.description);
 
 		if (current_cursor.is_access_node())
 		{
-            log::warn("ACCESS!!!");
+			log::warn("ACCESS!!!");
 			AccessExpr* access = current_cursor.node.as(ACCESS_EXPR);
 			if (access.kind == STATIC)
 			{
@@ -88,64 +89,66 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
 			{
 				ctx.access = LspAccessKind.INSTANCE;
 			}
-            
-            if (access.left)
-            {
-                Cursor left_cursor = { ctx.section, access.left };
-                ctx.base_identifier = left_cursor.spelling(tmem) ?? "";
+			
+			if (access.left)
+			{
+				Cursor left_cursor = { ctx.section, access.left };
+				ctx.base_identifier = left_cursor.spelling(tmem) ?? "";
 				log::warn("found left on access: %s", ctx.base_identifier);
-            }
+			}
 		}
 	}
 	else
-    {   
-        log::info("failed to find a section");
-        ctx.section = file_sections.last()!;
-    }   
-    ctx.scope = analysis::find_scope(&ctx, (int)offset);
+	{   
+		log::info("failed to find a section");
+		ctx.section = file_sections.last()!;
+	}   
+	ctx.scope = analysis::find_scope(&ctx, (int)offset);
 
-    log::info("Scope: %s", ctx.scope.description);
-    log::info("base_ident: %s", ctx.base_identifier);
+	log::info("Scope: %s", ctx.scope.description);
+	log::info("base_ident: %s", ctx.base_identifier);
 
-    switch (ctx.scope)
-    {
-        case IMPORT:
-            provide_imports(&ctx, &items);
-            break;
-        case GLOBAL:
-            provide_global(&ctx, &items);
-            provide_keywords(&ctx, &items);
-            break;
-        case CONTAINER:
-            provide_locals(&ctx, &items);
-            provide_global(&ctx, &items);
-            provide_keywords(&ctx, &items);
-            break;
-        case EXECUTION:
-            provide_locals(&ctx, &items);
-            provide_global(&ctx, &items);
-            provide_keywords(&ctx, &items);
-            break;
-        default:
-    }
+	switch (ctx.scope)
+	{
+		case IMPORT:
+			provide_imports(&ctx, &items);
+			break;
+		case GLOBAL:
+			provide_global(&ctx, &items);
+			provide_keywords(&ctx, &items);
+			break;
+		case CONTAINER:
+			provide_locals(&ctx, &items);
+			provide_global(&ctx, &items);
+			provide_keywords(&ctx, &items);
+			break;
+		case EXECUTION:
+			provide_locals(&ctx, &items);
+			provide_global(&ctx, &items);
+			provide_keywords(&ctx, &items);
+			break;
+		default:
+	}
 
 	return items.array_view();
 }
 
 fn void provide_member_access(Context* ctx, List{CompletionItem}* items)
 {
-    if (ctx.access == NONE || ctx.base_identifier.len == 0) return;
-
-    switch (ctx.access)
-    {
-        case STATIC:
-        {
-            Node* type_node = ctx.ws.find_symbol_by_name(ctx.base_identifier) ?? null;
-            if (!type_node) return;
-            analysis::inject_type_properties(ctx, items, type_node.kind);
-            // Block general keywords/globals since we match a explicit static type path
-            ctx.prefix = "\0_CONTEXT_LOCK_";
-            break;
+	if (ctx.access == NONE || ctx.base_identifier.len == 0) return;
+	
+	switch (ctx.access)
+	{
+		case STATIC:
+		{
+			List{SymbolEntry}? candidates = ctx.ws.find_symbol_by_name(ctx.base_identifier);
+			if (catch candidates) return;
+			if (candidates.len() == 0) return;
+			if (!candidates[0].node) return;
+			analysis::inject_type_properties(ctx, items, candidates[0].node.kind);
+			// Block general keywords/globals since we match a explicit static type path
+			ctx.prefix = "\0_CONTEXT_LOCK_";
+			break;
         }
         case INSTANCE:
         {
@@ -173,20 +176,23 @@ fn void provide_member_access(Context* ctx, List{CompletionItem}* items)
             }
 			*/
 
-			HashMap{String, Node*}*? map = ctx.ws.registry.get_all_methods(ctx.base_identifier);
-			if (catch map) return;
-			if (!map) return;
-
-			map.@each(; name, node)
+			ctx.ws.registry.methods.@each(; MethodKey key, List{SymbolEntry} list)
 			{
-				if (ctx.prefix.len == 0 || name.starts_with(ctx.prefix))
-                {
-                    items.push({
-                        .label = name,
-                        .kind = METHOD,
-                        .detail = string::tformat("method of %s", ctx.base_identifier)
-                    });
-                }
+				if (key.type_name == ctx.base_identifier) 
+				{
+					if (ctx.prefix.len == 0 || key.method_name.starts_with(ctx.prefix))
+					{
+						foreach (entry : list) 
+						{
+							items.push({
+								.label = key.method_name,
+								.kind = METHOD,
+								.detail = string::tformat("method of %s", ctx.base_identifier)
+							});
+							break;
+						}
+					}
+				}
 			};
 
             // Block general keywords/globals

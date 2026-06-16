@@ -11,7 +11,7 @@
   "targets": {
     "c3_ls": {
       "type": "executable",
-      "features": ["ANALYZER_LIB"],
+      "features": ["ANALYZER_LIB", "SEMA"],
     },
   },
   "cpu": "generic",

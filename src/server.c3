@@ -8,7 +8,6 @@ import std::io;
 import std::core::log;
 import std::thread;
 import std::time;
-
 import uri;
 
 bool running @local;

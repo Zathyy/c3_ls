@@ -12,7 +12,9 @@ struct SymbolSearchResult
 
 fn SymbolSearchResult find_symbol(Workspace* ws, ModuleSection* section, String name)
 {
-	if (section == null) return { null, "", false };
+	//if (section == null) return { null, "", false };
+
+	/*
 
 	String current_module = section.parent_module.name;
 
@@ -53,6 +55,7 @@ fn SymbolSearchResult find_symbol(Workspace* ws, ModuleSection* section, String 
 			}
 		}
 	};
+	*/
 
     return { null, "", false };
 }

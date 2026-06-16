@@ -54,6 +54,7 @@ fn void LspProject.open_file(&self, TextDocumentItem document, bool is_std_lib =
 
 	log::debug("Registering document stream via raw tracking token: %s", raw_uri);
 
+
 	Uri? file_uri = uri::parse(self.allocator, raw_uri);
 	if (catch err = file_uri) 
 	{
@@ -62,6 +63,7 @@ fn void LspProject.open_file(&self, TextDocumentItem document, bool is_std_lib =
 	};
 
 	String lookup_key = file_uri.path;
+	log::warn("Opening file: %s", lookup_key);
 
 	if (self.files.has_key(lookup_key))
 	{
@@ -79,10 +81,22 @@ fn void LspProject.open_file(&self, TextDocumentItem document, bool is_std_lib =
 
 	self.files[lookup_key] = lsp_file;
 
-	FileInput file = {
-		.source_text = lsp_file.text,
-		.uri = lookup_key
-	};
+	FileInput file;
+
+	if (!is_std_lib)
+	{
+		file = {
+			.source_text = lsp_file.text,
+			.uri = lookup_key,
+		};
+	}
+	else
+	{
+		file = {
+			.path = lookup_key,
+			.uri = lookup_key,
+		};
+	}
 
 	ProcessResult? result = result = workspace::process(&self.workspace, self.allocator, file);
 	if (catch err = result)

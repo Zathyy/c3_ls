@@ -88,7 +88,7 @@ fn void publish(Allocator allocator, Uri uri, ProcessResult* result)
 		};
 
 		String response_json = translator::encode(res, allocator);
-		log::debug("Sending diagnostics for errored section: %s", response_json);
+		log::warn("Sending diagnostics for errored section: %s", response_json);
 		io_handler::write(response_json);
 
 		diags.clear();
@@ -101,7 +101,7 @@ fn void publish(Allocator allocator, Uri uri, ProcessResult* result)
 			.method = PUB_DIAG,
 			.params.pub_diag = {
 				.uri = (DocumentUri)active_uri,
-				.diagnostics = diags.to_tarray(), // Safe empty layout payload []
+				.diagnostics = diags.to_tarray(),
 			}
 		};
 	
