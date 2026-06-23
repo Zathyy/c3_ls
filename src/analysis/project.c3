@@ -4,6 +4,7 @@ import std::io;
 import std::collections::map;
 
 import lsp::msg_handler::publish_diag;
+import lsp::config;
 import dessert;
 import derive;
 import analyzer::core;
@@ -27,6 +28,8 @@ struct LspProject
 {
 	HashMap{String, LspFile*} files;
 	Workspace workspace;
+	ProjectConfig config;
+	HashMap{String, ManifestConfig} manifests;
 	Allocator allocator;
 }
 
