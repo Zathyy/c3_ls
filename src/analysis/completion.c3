@@ -176,25 +176,29 @@ fn void provide_member_access(Context* ctx, List{CompletionItem}* items)
             }
 			*/
 
-			ctx.ws.registry.methods.@each(; MethodKey key, List{SymbolEntry} list)
+			ctx.ws.modules.@each(; name, mod)
 			{
-				if (key.type_name == ctx.base_identifier) 
+				mod.registry.methods.@each(; MethodKey key, List{SymbolEntry} list)
 				{
-					if (ctx.prefix.len == 0 || key.method_name.starts_with(ctx.prefix))
+					if (key.type_name == ctx.base_identifier) 
 					{
-						foreach (entry : list) 
+						if (ctx.prefix.len == 0 || key.method_name.starts_with(ctx.prefix))
 						{
-							items.push({
-								.label = key.method_name,
-								.kind = METHOD,
-								.detail = string::tformat("method of %s", ctx.base_identifier)
-							});
-							break;
+							foreach (entry : list) 
+							{
+								items.push({
+									.label = key.method_name,
+									.kind = METHOD,
+									.detail = string::tformat("method of %s", ctx.base_identifier)
+								});
+								break;
+							}
 						}
 					}
-				}
+				};
 			};
 
+			
             // Block general keywords/globals
             ctx.prefix = "\0_CONTEXT_LOCK_";
             break;
@@ -325,7 +329,7 @@ fn void provide_keywords(Context* ctx, List{CompletionItem}* items)
 {
     if (ctx.access != NONE) return;
 
-    foreach (kw : Keywords::values)
+    foreach (kw : lsp::Keywords::values)
 	{
 		switch (ctx.scope)
         {
