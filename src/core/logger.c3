@@ -1,6 +1,9 @@
 module lsp::logger;
 
 import lsp::msg_handler::log_message;
+import lsp::server;
+
+import std::io;
 
 struct LspLogger (Logger)
 {
@@ -27,6 +30,14 @@ fn void LspLogger.log(&self, LogPriority priority, LogCategory category, LogTag 
 		DString str;
 		str.init(mem, 256);
 		str.appendf(fmt, ...args);
-		log_message::send(str.str_view(), to_type(priority));
+		
+		if (priority >= INFO && server::is_ready) 
+		{
+        	log_message::send(str.str_view(), to_type(priority));
+    	} 
+		else 
+		{
+			io::eprintn(str.str_view());
+		}
 	};
 }
