@@ -17,11 +17,37 @@ const String MANIFEST_CONFIG_NAME = "manifest.json";
 $expand(derive(ProjectConfig::name, dessert));
 struct ProjectConfig
 {
+	String root_path @DField({ .skip = true });
 	String[] sources;
 	Maybe{String[]} dependency_search_paths @DField({ .rename = "dependency-search-paths" });
     Maybe{String[]} dependencies;
 	Maybe{String[]} features;
 	HashMap{String, TargetConfig} targets;
+}
+
+fn void ProjectConfig.free(&self, Allocator allocator)
+{
+	if (self.root_path) self.root_path.free(allocator);
+	if (self.sources) alloc::free(allocator, self.sources);
+	if (try val = self.dependency_search_paths.get())
+	{
+		alloc::free(allocator, val);
+	} 
+	if (try val = self.dependencies.get())
+	{
+		alloc::free(allocator, val);
+	} 
+	if (try val = self.features.get())
+	{
+		alloc::free(allocator, val);
+	}
+
+	self.targets.@each(; name, conf)
+	{
+		conf.free(allocator);
+	};
+
+	self.targets.free();
 }
 
 $expand(derive(ManifestConfig::name, dessert));
@@ -31,12 +57,43 @@ struct ManifestConfig
 	HashMap{String, TargetConfig} targets;
 }
 
+fn void ManifestConfig.free(&self, Allocator alloc)
+{
+	if (self.sources)
+	{
+		alloc::free(alloc, self.sources);
+	}
+
+	self.targets.@each(; name, conf)
+	{
+		conf.free(alloc);
+	};
+
+	self.targets.free();
+}
+
 $expand(derive(TargetConfig::name, dessert));
 struct TargetConfig
 {
 	Maybe{String[]} link_args;
 	Maybe{String[]} dependencies;
 	Maybe{String[]} linked_libraries @DField({ .rename = "linked-libraries" });
+}
+
+fn void TargetConfig.free(&self, Allocator allocator)
+{
+	if (try val = self.link_args.get())
+	{
+		alloc::free(allocator, val);
+	}
+	if (try val = self.dependencies.get())
+	{
+		alloc::free(allocator, val);
+	}
+	if (try val = self.linked_libraries.get())
+	{
+		alloc::free(allocator, val);
+	}
 }
 
 fn void load(LspProject* lsp_project, WorkspaceFolder wf, Allocator allocator)
@@ -58,6 +115,7 @@ fn void load(LspProject* lsp_project, WorkspaceFolder wf, Allocator allocator)
 		return;
 	}
 	Path found_config;
+	lsp_project.config.root_path = root_path.copy(allocator);
 
 	PathList? entries = path::ls(allocator, root_path, recursive: false, relative: true);
 	if (catch entries)
