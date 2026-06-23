@@ -35,11 +35,11 @@ fn void LspMessage.free(&self)
 *>
 macro String encode(expr, Allocator allocator, int indent = 0)
 {
-	log::verbose("encoding message type %s", $Typeof(expr)::name);
+	log::debug("encoding message type %s", $Typeof(expr)::name);
 	// TODO: handle encoding error
 	String expr_json = ser::serialize(&&json::string_serializer(), expr)!!;
 	usz expr_size = expr_json.len;
-	log::verbose("message size: %d", expr_size);
+	log::debug("message size: %d", expr_size);
 
 	return string::format(allocator,
 		"Content-Length: %d\r\n\r\n%s",

@@ -88,7 +88,7 @@ fn void publish(Allocator allocator, Uri uri, ProcessResult* result)
 		};
 
 		String response_json = translator::encode(res, allocator);
-		log::warn("Sending diagnostics for errored section: %s", response_json);
+		log::debug("Sending diagnostics for errored section: %s", response_json);
 		io_handler::write(response_json);
 
 		diags.clear();

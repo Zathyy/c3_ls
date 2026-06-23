@@ -51,7 +51,7 @@ fn void response(Allocator allocator, LspProject* project, LspMessage* message)
 		.id = message.id.get() ?? -1,
 		.result = {
 			.is_incomplete = true,
-        	.items = items ?? {},
+			.items = items ?? {},
 		} 
 	};
 

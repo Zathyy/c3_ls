@@ -12,19 +12,18 @@ import std::thread;
 import std::time;
 import uri;
 
+bool is_ready;
 bool running @local;
 LspProject project;
+
 fn void start(CliArgs args)
 {
 	log::set_logger(&&(LspLogger){});
-	log::set_priority_all(LogPriority.WARN);
-	log::info("STARTUP");
+	//log::set_priority_all(INFO);
 	io_handler::init();
 
 	project.init(mem);
 	defer project.free();
-
-	log::info("Lsp initialized!");
 
 	running = true;
 
@@ -56,14 +55,15 @@ fn void dispatch(LspMessage* message)
 	switch (message.method)
 	{
 		case INITIALIZE:
+			initialize::response(tmem, message);
 			if (try value = message.params.initialize.workspace_folders.get())
 			{
 				WorkspaceFolder wf = value[0];
 				config::load(&project, wf, mem);
 			}
-			initialize::response(tmem, message);
 		case INITIALIZED:
 			log::info("received Initialized");
+			is_ready = true;
 		case DID_OPEN:
 			project.open_file(message.params.did_open.document);
 		case DID_CHANGE:
