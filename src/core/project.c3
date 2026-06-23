@@ -1,10 +1,11 @@
-module lsp::analysis;
+module lsp::core;
 
 import std::io;
 import std::collections::map;
 
+import lsp::analysis;
 import lsp::msg_handler::publish_diag;
-import lsp::config;
+import lsp::core::config;
 import dessert;
 import derive;
 import analyzer::core;
@@ -49,6 +50,12 @@ fn void LspProject.free(&self)
 		alloc::free(self.allocator, file);
 	};
 	self.files.free();
+	self.config.free(self.allocator);
+	self.manifests.@each(; name, conf)
+	{
+		conf.free(self.allocator);
+	};
+	self.manifests.free();
 }
 
 fn void LspProject.open_file(&self, TextDocumentItem document, bool is_std_lib = false)
