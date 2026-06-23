@@ -3,6 +3,8 @@ import lsp::io_handler;
 import lsp::analysis;
 import lsp::translator;
 import lsp::msg_handler;
+import lsp::config;
+import lsp::logger;
 
 import std::io;
 import std::core::log;
@@ -14,7 +16,7 @@ bool running @local;
 LspProject project;
 fn void start(CliArgs args)
 {
-	// log::set_logger(&&(NullLogger){});
+	log::set_logger(&&(LspLogger){});
 	log::set_priority_all(LogPriority.WARN);
 	log::info("STARTUP");
 	io_handler::init();
@@ -54,6 +56,11 @@ fn void dispatch(LspMessage* message)
 	switch (message.method)
 	{
 		case INITIALIZE:
+			if (try value = message.params.initialize.workspace_folders.get())
+			{
+				WorkspaceFolder wf = value[0];
+				config::load(&project, wf, mem);
+			}
 			initialize::response(tmem, message);
 		case INITIALIZED:
 			log::info("received Initialized");

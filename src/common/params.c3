@@ -95,6 +95,7 @@ union MessageParams
 	CompletionParams completion;
 
 	PublishDiagnosticsParams pub_diag;
+	LogMessageParams log_message;
 
 	CancelParams cancel;
 	SetTraceParams set_trace;
@@ -190,3 +191,9 @@ struct DidChangeParams @DStruct({ .rename_all = CAMEL_CASE })
 	TextDocumentContentChangeEvent[] content_changes;
 }
 
+$expand(derive(LogMessageParams::name, dessert));
+struct LogMessageParams
+{
+	int type;
+	String message;
+}
