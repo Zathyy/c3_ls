@@ -2,6 +2,7 @@ module lsp::msg_handler::completion;
 import lsp::translator;
 import lsp::io_handler;
 import lsp::analysis;
+import lsp::core;
 
 import std::io;
 import std::collections::object;

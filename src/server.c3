@@ -3,9 +3,8 @@ import lsp::io_handler;
 import lsp::analysis;
 import lsp::translator;
 import lsp::msg_handler;
-import lsp::config;
-import lsp::logger;
-
+import lsp::core::config;
+import lsp::core::logger;
 import std::io;
 import std::core::log;
 import std::thread;

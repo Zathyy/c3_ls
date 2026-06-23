@@ -3,6 +3,7 @@
 *>
 module lsp::msg_handler::hover;
 import lsp::translator;
+import lsp::core;
 
 import std::io;
 import std::collections::object;

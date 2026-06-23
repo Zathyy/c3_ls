@@ -1,4 +1,4 @@
-module lsp::logger;
+module lsp::core::logger;
 
 import lsp::msg_handler::log_message;
 import lsp::server;

@@ -7,6 +7,8 @@ import analyzer::cursor;
 import std::collections::list;
 import std::collections::map;
 
+import lsp::core;
+
 import uri;
 
 fn String? hover(LspProject* project, Uri uri, LspPosition pos)

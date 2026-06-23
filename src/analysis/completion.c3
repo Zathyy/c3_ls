@@ -8,7 +8,7 @@ import analyzer::sema;
 import std::collections::list;
 import std::collections::map;
 
-
+import lsp::core;
 import uri;
 
 struct Context
