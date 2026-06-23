@@ -94,11 +94,11 @@ fn void load(LspProject* lsp_project, WorkspaceFolder wf, Allocator allocator)
 		log::error("Failed to load file: %s", err);
 		return;
 	}
-	log::info("%s", json_content);
+	log::debug("%s", json_content);
 	if (found_project)
 	{
 		log::info("Found project.json at (%s)", config_path);
-		ProjectConfig? conf = des::deserialize{ProjectConfig}(&&json5::deserializer(allocator, json_content));
+		ProjectConfig? conf = json::deserialize{ProjectConfig}(allocator, json_content);
 		if (catch err = conf)
 		{
 			log::error("Failed to deserialize project.json - %s", err);
@@ -109,7 +109,7 @@ fn void load(LspProject* lsp_project, WorkspaceFolder wf, Allocator allocator)
 	else 
 	{
 		log::info("Found manifest in root.");
-		ManifestConfig? conf = des::deserialize{ManifestConfig}(&&json5::deserializer(allocator, json_content));
+		ManifestConfig? conf = json::deserialize{ManifestConfig}(allocator, json_content);;
 		if (catch err = conf)
 		{
 			log::error("Failed to deserialize project.json - %s", err);
