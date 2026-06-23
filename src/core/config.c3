@@ -15,7 +15,7 @@ const String PROJECT_CONFIG_NAME = "project.json";
 const String MANIFEST_CONFIG_NAME = "manifest.json";
 
 $expand(derive(ProjectConfig::name, dessert));
-struct ProjectConfig @DStruct({ .deny_unknown_fields = true })
+struct ProjectConfig
 {
 	String[] sources;
 	Maybe{String[]} dependency_search_paths @DField({ .rename = "dependency-search-paths" });
@@ -25,14 +25,14 @@ struct ProjectConfig @DStruct({ .deny_unknown_fields = true })
 }
 
 $expand(derive(ManifestConfig::name, dessert));
-struct ManifestConfig @DStruct({ .deny_unknown_fields = true })
+struct ManifestConfig
 {
 	String[] sources;
 	HashMap{String, TargetConfig} targets;
 }
 
 $expand(derive(TargetConfig::name, dessert));
-struct TargetConfig @DStruct({ .deny_unknown_fields = true })
+struct TargetConfig
 {
 	Maybe{String[]} link_args;
 	Maybe{String[]} dependencies;
@@ -98,7 +98,7 @@ fn void load(LspProject* lsp_project, WorkspaceFolder wf, Allocator allocator)
 	if (found_project)
 	{
 		log::info("Found project.json at (%s)", config_path);
-		ProjectConfig? conf = des::deserialize{ProjectConfig}(&&json::debug_deserializer(allocator, json_content));
+		ProjectConfig? conf = des::deserialize{ProjectConfig}(&&json5::deserializer(allocator, json_content));
 		if (catch err = conf)
 		{
 			log::error("Failed to deserialize project.json - %s", err);
@@ -109,7 +109,7 @@ fn void load(LspProject* lsp_project, WorkspaceFolder wf, Allocator allocator)
 	else 
 	{
 		log::info("Found manifest in root.");
-		ManifestConfig? conf = des::deserialize{ManifestConfig}(&&json::deserializer(allocator, json_content));
+		ManifestConfig? conf = des::deserialize{ManifestConfig}(&&json5::deserializer(allocator, json_content));
 		if (catch err = conf)
 		{
 			log::error("Failed to deserialize project.json - %s", err);
