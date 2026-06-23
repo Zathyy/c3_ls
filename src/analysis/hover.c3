@@ -29,6 +29,7 @@ fn String? hover(LspProject* project, Uri uri, LspPosition pos)
 	sz offset = sf.line_map.get_offset(sf.source, loc);
 
 	Cursor cursor = cursor::find_at(file_sections.get(0), (int) offset);
+	if (!cursor.is_valid()) return "";
 
 	return cursor.spelling(tmem);
 }
