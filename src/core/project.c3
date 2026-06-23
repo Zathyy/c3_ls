@@ -142,11 +142,14 @@ fn void LspProject.change_file(&self, DidChangeParams params)
 	LspFile* file = self.files.get(lookup_key) ?? null;
 	if (!file) return;
 
-	if (file.text.ptr != null)
+	if (params.document.version <= file.version) return;
+	file.version = params.document.version;
+	log::info("Reindexing: version = %d", file.version);
+
+	if (file.text)
 	{
 		mem::free(file.text); 
 	}
-
 	file.text = params.content_changes[0].text.copy(self.allocator);
 	FileInput input = {
 		.source_text = file.text,

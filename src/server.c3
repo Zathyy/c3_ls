@@ -58,7 +58,7 @@ fn void dispatch(LspMessage* message)
 			if (try value = message.params.initialize.workspace_folders.get())
 			{
 				WorkspaceFolder wf = value[0];
-				config::load(&project, wf, mem);
+				config::load(&project, wf, mem);	
 			}
 		case INITIALIZED:
 			log::info("received Initialized");
