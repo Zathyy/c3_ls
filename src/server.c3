@@ -18,7 +18,7 @@ LspProject project;
 fn void start(CliArgs args)
 {
 	log::set_logger(&&(LspLogger){});
-	//log::set_priority_all(INFO);
+	log::set_priority_all(INFO);
 	io_handler::init();
 
 	project.init(mem);
@@ -58,11 +58,12 @@ fn void dispatch(LspMessage* message)
 			if (try value = message.params.initialize.workspace_folders.get())
 			{
 				WorkspaceFolder wf = value[0];
-				config::load(&project, wf, mem);	
+				config::load(&project, wf, mem);
 			}
 		case INITIALIZED:
 			log::info("received Initialized");
 			is_ready = true;
+			project.process_config();
 		case DID_OPEN:
 			project.open_file(message.params.did_open.document);
 		case DID_CHANGE:
