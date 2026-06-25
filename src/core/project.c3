@@ -189,3 +189,52 @@ fn void LspProject.close_file(&self, DocumentUri document)
 	alloc::free(self.allocator, file);
 	self.files.remove(lookup_key);
 }
+
+fn void LspProject.process_config(&self)
+{
+	Path? base_path = path::tnew(self.config.root_path);
+	if (catch err = base_path)
+	{
+		log::error("Config base path is not valid.");
+		return;
+	}
+
+	log::error("base_path: %s", base_path);
+
+	foreach (source_entry : self.config.sources)
+	{
+		String entry_str = source_entry;
+		bool recursive = false;
+        String mask = "*.c3";
+
+		if (entry_str.ends_with("/**"))
+        {
+            entry_str = entry_str.strip_suffix("/**");
+            recursive = true;
+        }
+
+		Path? entry_path = base_path.tappend(entry_str);
+        if (catch err = entry_path)
+        {
+            log::error("'%s' is not a valid directory layout: %s", entry_str, err);
+            continue;
+        }
+
+		log::error("Entry: %s", entry_path);
+		
+		PathList paths;
+		if (catch err = @try(paths, path::ls(tmem, entry_path, no_dirs: true, mask: mask, recursive: recursive, rebase: entry_path)))
+        {
+            log::error("Failed to list directory contents for: %s", entry_str);
+            continue;
+        }
+
+		foreach (matched : paths)
+        {
+			log::info("Found path: %s", matched);
+			Uri file_uri = uri::from_file_path(tmem, matched);
+			DocumentUri uri = (DocumentUri)file_uri.to_raw_string(tmem);
+			self.open_file({ .uri = uri }, true);
+        }
+	}
+}
