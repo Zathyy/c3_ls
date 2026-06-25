@@ -115,9 +115,8 @@ fn void load(LspProject* lsp_project, WorkspaceFolder wf, Allocator allocator)
 		return;
 	}
 	Path found_config;
-	lsp_project.config.root_path = root_path.copy(allocator);
 
-	PathList? entries = path::ls(allocator, root_path, recursive: false, relative: true);
+	PathList? entries = path::ls(tmem, root_path, recursive: false, relative: true);
 	if (catch entries)
 	{
 		log::error("Failed to list files in workspace root");
@@ -176,4 +175,7 @@ fn void load(LspProject* lsp_project, WorkspaceFolder wf, Allocator allocator)
 		lsp_project.config.sources = conf.sources;
         lsp_project.config.targets = conf.targets;
 	} 
+
+	lsp_project.config.root_path = root_path.copy(allocator);
+	log::info("Set config.root_path: %s", lsp_project.config.root_path);
 }	
