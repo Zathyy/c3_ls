@@ -31,13 +31,13 @@ fn void LspLogger.log(&self, LogPriority priority, LogCategory category, LogTag 
 		str.init(mem, 256);
 		str.appendf(fmt, ...args);
 		
-		if (priority >= INFO && server::is_ready) 
-		{
-        	log_message::send(str.str_view(), to_type(priority));
-    	} 
-		else 
-		{
+		//if (priority >= INFO && server::is_ready) 
+		//{
+        //	log_message::send(str.str_view(), to_type(priority));
+    	//} 
+		//else 
+		//{
 			io::eprintn(str.str_view());
-		}
+		//}
 	};
 }
