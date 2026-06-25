@@ -221,6 +221,7 @@ fn void provide_global(Context* ctx, List{CompletionItem}* items)
             foreach (node : sec.nodes)
             {
 				if (!node) continue;
+				if (!node.is_valid()) continue;
                 if (node.visibility != PUBLIC) continue;
             
                 switch (node.kind)
@@ -248,7 +249,7 @@ fn void provide_global(Context* ctx, List{CompletionItem}* items)
             }
         }
     };
-} 
+}
 
 fn void provide_locals(Context* ctx, List{CompletionItem}* items)
 {
@@ -263,11 +264,16 @@ fn void provide_locals(Context* ctx, List{CompletionItem}* items)
         return;
     }
     
-	if (parent.kind == FN_DECL)
+	if FUNC: (parent.kind == FN_DECL)
     {
         FnDecl* func = parent.as(FN_DECL);
 		foreach (param_node : func.params)
 		{
+			if (!param_node && !param_node.is_valid())
+			{
+				continue;
+			}
+
 			VarDecl* param = param_node.as(VAR_DECL);
 			Cursor cursor = { sec, param_node };
 			String name = cursor.spelling(tmem) ?? "";
@@ -280,6 +286,7 @@ fn void provide_locals(Context* ctx, List{CompletionItem}* items)
 		}
         
 		Node* body = func.body;
+		if (!body) break FUNC;
 		switch (body.kind)
 		{
 			case COMPOUND_STMT:
