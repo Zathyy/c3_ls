@@ -93,6 +93,7 @@ union MessageParams
 	DidCloseParams did_close;
 	HoverParams hover;
 	CompletionParams completion;
+	GoToDefinitionParams definition;
 
 	PublishDiagnosticsParams pub_diag;
 	LogMessageParams log_message;
@@ -136,6 +137,16 @@ struct DidCloseParams
 
 $expand(derive(HoverParams::name, dessert));
 struct HoverParams
+{
+	struct document @DField({ .rename = "textDocument" })
+	{
+		DocumentUri uri;
+	}
+	LspPosition position;
+}
+
+$expand(derive(GoToDefinitionParams::name, dessert));
+struct GoToDefinitionParams
 {
 	struct document @DField({ .rename = "textDocument" })
 	{

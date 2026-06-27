@@ -24,4 +24,5 @@ struct LspServerCapabilities @DStruct({ .rename_all = CAMEL_CASE })
 	TextDocumentSyncOptions text_document_sync;
 	CompletionOptions completion_provider;
 	bool hover_provider;
+	bool definition_provider;
 }

@@ -47,6 +47,7 @@ fn void response(Allocator allocator, LspMessage* message)
                     }
 				},
 				.hover_provider = true,
+				.definition_provider = true,
 			},
 			.serverInfo = {
 				.name = "c3_ls",
