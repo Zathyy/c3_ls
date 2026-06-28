@@ -89,7 +89,7 @@ fn ScopeKind find_scope(Context* ctx, int cursor_pos)
 	Lexer lexer = {
 		.buffer = src[node.offset.start .. node.offset.end],
 	};
-
+	
 	switch (node.kind)
 	{
 		case STRUCT_DECL:
@@ -97,7 +97,7 @@ fn ScopeKind find_scope(Context* ctx, int cursor_pos)
 			ScopeKind scope = NONE;
 			int num_braces;
 			
-			while (try t = lexer.next())
+			foreach (t : ctx.tokens)
 			{
 				if (node.offset.start + t.pos >= cursor_pos) break;
 
@@ -125,7 +125,7 @@ fn ScopeKind find_scope(Context* ctx, int cursor_pos)
 			int parens;
 			int braces;
 
-			while (try t = lexer.next())
+			foreach (t : ctx.tokens)
 			{
 				if (node.offset.start + t.pos >= cursor_pos) break;
 

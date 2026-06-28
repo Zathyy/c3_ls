@@ -16,6 +16,7 @@ struct Context
 {
 	Uri uri;
 	LspPosition position;
+	sz offset;
 	Workspace* ws;
 	ModuleSection* section;
 	Allocator allocator;
@@ -47,7 +48,7 @@ fn void context_populate_tokens(Context* ctx)
 
 fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
 {
-	log::info("resolve");
+	log::debug("resolve");
 	Context ctx = (Context){
 		.uri = uri,
 		.position = pos,
@@ -71,6 +72,7 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
 
 	SourceFile* sf = file_sections.get(0).source_file;
 	sz offset = sf.line_map.get_offset(sf.source, loc);
+	ctx.offset = offset;
 	ctx.prefix = analysis::extract_prefix(sf.source, (sz)offset).trim();
 
 	Location res_loc = sf.line_map.resolve(offset);
@@ -82,74 +84,35 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
 
 	Cursor current_cursor = ctx.ws.find_top_level_statement_at_location(uri.path, loc);
 	ctx.top_level_node = current_cursor.node;
-	
-	if LEAF: (current_cursor.is_valid())
-	{
-		ctx.section = current_cursor.section;
+	ctx.section = current_cursor.is_valid() ? current_cursor.section : file_sections.last()!;
 
-		Cursor deep_leaf_cursor = ctx.ws.find_leaf_at_location(uri.path, loc);
-
-		if (!deep_leaf_cursor.is_valid()) break LEAF;
-		
-		ctx.leaf_node = deep_leaf_cursor.node;
-
-		log::warn("node_kind: %s", ctx.leaf_node.kind.description);
-
-		if (current_cursor.is_access_node())
-		{
-			log::warn("ACCESS!!!");
-			AccessExpr* access = current_cursor.node.as(ACCESS_EXPR);
-			if (access.kind == STATIC)
-			{
-				ctx.access = LspAccessKind.STATIC;
-			}
-			else
-			{
-				ctx.access = LspAccessKind.INSTANCE;
-			}
-			
-			if (access.left)
-			{
-				Cursor left_cursor = { ctx.section, access.left };
-				ctx.base_identifier = left_cursor.spelling(tmem) ?? "";
-				log::warn("found left on access: %s", ctx.base_identifier);
-			}
-		}
-	}
-	else
-	{
-		log::info("failed to find a section");
-		ctx.section = file_sections.last()!;
-	}
-	
 	context_populate_tokens(&ctx);
+	detect_access_context(&ctx);
 	ctx.scope = analysis::find_scope(&ctx, (int)offset);
+
 	log::info("access: %s", ctx.access.description);
 	log::info("Scope: %s", ctx.scope.description);
 	log::info("base_ident: %s", ctx.base_identifier);
 	log::info("prefix: %s", ctx.prefix);
-	
-	switch (ctx.scope)
+
+	if (provide_member_access(&ctx, &items)) 
 	{
-		case IMPORT:
-			provide_imports(&ctx, &items);
-			break;
-		case GLOBAL:
-			provide_global(&ctx, &items);
-			provide_keywords(&ctx, &items);
-			break;
-		case CONTAINER:
-			provide_locals(&ctx, &items);
-			provide_global(&ctx, &items);
-			provide_keywords(&ctx, &items);
-			break;
-		case EXECUTION:
-			provide_locals(&ctx, &items);
-			provide_global(&ctx, &items);
-			provide_keywords(&ctx, &items);
-			break;
-		default:
+		return items.array_view();
 	}
+	
+	if (ctx.scope == IMPORT)
+	{
+		provide_imports(&ctx, &items);
+		return items.array_view();
+	}
+	
+	if (ctx.scope == EXECUTION || ctx.scope == CONTAINER)
+	{
+		provide_locals(&ctx, &items);
+	}
+
+	provide_global(&ctx, &items);
+	provide_keywords(&ctx, &items);
 
 	return items.array_view();
 }

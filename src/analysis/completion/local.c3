@@ -45,7 +45,6 @@ fn void provide_locals(Context* ctx, List{CompletionItem}* items)
 				.sort_text = string::tformat("0001_%s", name)
 			});
 		}
-		
 		Node* body = func.body;
 		if (!body) break FUNC;
 		switch (body.kind)
