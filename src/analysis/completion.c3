@@ -41,7 +41,7 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
 		.line = (sz)ctx.position.line,
 		.column = (sz)ctx.position.character
 	};
-
+	
 	log::info("resolve - editor location: %s:%s", loc.line + 1, loc.column + 1);
 
 	List{CompletionItem} items; items.init(tmem);
@@ -265,7 +265,7 @@ fn void provide_locals(Context* ctx, List{CompletionItem}* items)
 
 	Node* parent = ctx.top_level_node;
     ModuleSection* sec = ctx.section;
-    if (!parent) 
+    if (!parent || !parent.is_valid()) 
     {
         log::warn("No parent");
         return;
@@ -276,7 +276,7 @@ fn void provide_locals(Context* ctx, List{CompletionItem}* items)
         FnDecl* func = parent.as(FN_DECL);
 		foreach (param_node : func.params)
 		{
-			if (!param_node && !param_node.is_valid())
+			if (!param_node || !param_node.is_valid() || param_node.kind != VAR_DECL)
 			{
 				continue;
 			}
@@ -314,7 +314,7 @@ fn void provide_locals(Context* ctx, List{CompletionItem}* items)
 										.kind = VARIABLE, 
 										.detail = string::tformat("(local) %s", name),
 										.sort_text = string::tformat("0001_%s", name)
-										});
+									});
                                 }
 							default:
 								break;
