@@ -37,6 +37,7 @@ fn void provide_locals(Context* ctx, List{CompletionItem}* items)
 			VarDecl* param = param_node.as(VAR_DECL);
 			Cursor cursor = { sec, param_node };
 			String name = cursor.spelling(tmem) ?? "";
+			if (ctx.prefix.len > 0 && !name.contains(ctx.prefix)) break;
 			items.push({ 
 				.label = name, 
 				.kind = VARIABLE, 
@@ -60,15 +61,13 @@ fn void provide_locals(Context* ctx, List{CompletionItem}* items)
 								VarDecl* local = stmt.as(VAR_DECL);
 								Cursor field_cursor = { sec, stmt };
 								String name = field_cursor.spelling(tmem) ?? "";
-								if (ctx.prefix.len == 0 || name.starts_with(ctx.prefix))
-								{
-									items.push({ 
-										.label = name, 
-										.kind = VARIABLE, 
-										.detail = string::tformat("(local) %s", name),
-										.sort_text = string::tformat("0001_%s", name)
-									});
-								}
+								if (ctx.prefix.len > 0 && !name.contains(ctx.prefix)) break;
+								items.push({ 
+									.label = name, 
+									.kind = VARIABLE, 
+									.detail = string::tformat("(local) %s", name),
+									.sort_text = string::tformat("0001_%s", name)
+								});
 							default:
 								break;
 						}
