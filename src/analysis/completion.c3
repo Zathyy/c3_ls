@@ -53,14 +53,14 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
 
 	SourceFile* sf = file_sections.get(0).source_file;
 	sz offset = sf.line_map.get_offset(sf.source, loc);
-	ctx.prefix = analysis::extract_prefix(sf.source, (sz)offset);
+	ctx.prefix = analysis::extract_prefix(sf.source, (sz)offset).trim();
 
 	Location res_loc = sf.line_map.resolve(offset);
 
 	log::info("resolve - parser location: %s:%s", res_loc.line + 1, res_loc.column + 1);
 
 	ctx.access = NONE;
-	ctx.base_identifier = "";	
+	ctx.base_identifier = "";
 
 	Cursor current_cursor = ctx.ws.find_top_level_statement_at_location(uri.path, loc);
 	ctx.top_level_node = current_cursor.node;
@@ -104,10 +104,11 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
 		ctx.section = file_sections.last()!;
 	}   
 	ctx.scope = analysis::find_scope(&ctx, (int)offset);
-
+	log::info("access: %s", ctx.access.description);
 	log::info("Scope: %s", ctx.scope.description);
 	log::info("base_ident: %s", ctx.base_identifier);
-
+	log::info("prefix: %s", ctx.prefix);
+	
 	switch (ctx.scope)
 	{
 		case IMPORT:
@@ -209,46 +210,52 @@ fn void provide_member_access(Context* ctx, List{CompletionItem}* items)
 
 fn void provide_global(Context* ctx, List{CompletionItem}* items)
 {
-    String active_mod_name = ctx.section.parent_module.name;
-    if (ctx.access != NONE) return;
-    
-    ctx.ws.modules.@each(; name, mod)
-    {
-        foreach (sec : mod.sections)
-        {
-            if (sec == ctx.section) continue;
+	if (ctx.access != NONE) return;
 
-            foreach (node : sec.nodes)
-            {
-				if (!node) continue;
-				if (!node.is_valid()) continue;
-                if (node.visibility != PUBLIC) continue;
-            
-                switch (node.kind)
-                {
-                    case MODULE_DECL: continue;
-                    case IMPORT_DECL: continue;
-                    default: break;
-                }
-                Cursor cursor = { sec, node };
-                String type_name = cursor.spelling(tmem) ?? "";
+	Module* current_mod = ctx.section.parent_module;
 
-                if (type_name.len == 0 || (ctx.prefix.len > 0 && !type_name.starts_with(ctx.prefix))) 
+	ctx.ws.modules.@each(; mod_name, mod)
+	{
+		mod.symbols.@each(; symbol_name, symbol_list)
+		{
+			do SYMB:
+			{
+				if (symbol_list.is_empty()) break SYMB;
+
+				if (ctx.prefix.len > 0 && !symbol_name.starts_with(ctx.prefix)) 
                 {
-                    continue;
+                    break SYMB;
                 }
-                
-                items.push({
-                    .label = type_name,
-                    .kind = analysis::completion_kind_from_node(node),
-                    // .insert_text = cursor.shortened_path(ctx.ws),
-                    .detail = name,
-                    .documentation = string::tformat("Type declared in module '%s'", name),
-                    .sort_text = string::tformat("0002_%s", name)
-                });
-            }
-        }
-    };
+				
+				foreach (entry : symbol_list)
+				{
+					Node* node = entry.node;
+					if (!node || !node.is_valid()) break SYMB;
+					
+					if (mod != current_mod && node.visibility != PUBLIC) 
+					{
+						break SYMB;
+					}
+					
+					switch (node.kind)
+					{
+						case MODULE_DECL: break SYMB;
+						case IMPORT_DECL: break SYMB;
+						default: 
+							break;
+					}
+
+					items.push({
+						.label = symbol_name,
+						.kind = analysis::completion_kind_from_node(node),
+						.detail = mod_name,
+						.documentation = string::tformat("Symbol declared in module '%s'", mod_name),
+						.sort_text = string::tformat("0002_%s", symbol_name)
+					});
+				}
+			};
+		};
+	};
 }
 
 fn void provide_locals(Context* ctx, List{CompletionItem}* items)
