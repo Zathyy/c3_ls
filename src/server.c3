@@ -13,18 +13,36 @@ import uri;
 
 bool is_ready;
 bool running @local;
+LogLevel log_level;
+String log_path;
 LspProject project;
 
 fn void start(CliArgs args)
 {
 	log::set_logger(&&(LspLogger){});
-	log::set_priority_all(INFO);
+	log::set_priority_all(VERBOSE);
+
+	if (catch err = @try(log_level, LogLevel::lookup_field(name, args.log_level)))
+	{
+		log::error("Unkown log-level %s", args.log_level);
+		log_level = ERROR;
+	}
+	
 	io_handler::init();
 
 	project.init(mem);
 	defer project.free();
 
 	running = true;
+
+	if (try log = args.log_path.get())
+	{
+		log::info("Set logging to path = %s", log);
+		log_path = log;
+	}
+
+	logger::init();
+	defer logger::close();
 
 	if (try path = args.stdlib_path.get())
 	{
@@ -55,6 +73,13 @@ fn void dispatch(LspMessage* message)
 	{
 		case INITIALIZE:
 			initialize::response(tmem, message);
+			if (try value = message.params.initialize.trace.get())
+			{
+				if (value == VERBOSE)
+				{
+					log::set_priority_all(VERBOSE);
+				}
+			}
 			if (try value = message.params.initialize.workspace_folders.get())
 			{
 				WorkspaceFolder wf = value[0];
@@ -76,6 +101,9 @@ fn void dispatch(LspMessage* message)
 			hover::response(tmem, &project, message);
 		case DEFINITION:
 			goto_definition::response(tmem, &project, message);
+		case SET_TRACE:
+			{
+			}
 		case SHUTDOWN:
 			shutdown::response(tmem, message);
 		case EXIT:
