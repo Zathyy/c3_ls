@@ -48,7 +48,8 @@ fn void detect_access_context(Context* ctx)
 			case AT_IDENT:
 				ctx.access = (op_tok.kind == SCOPE) ? LspAccessKind.STATIC : LspAccessKind.INSTANCE;
 				String src = ctx.section.source_file.source;
-				ctx.base_identifier = src[base_tok.pos:base_tok.len];			
+				ctx.base_identifier = src[base_tok.pos:base_tok.len];
+				ctx.base_offset = base_tok.pos;		
 			default:
 				break;
 		}
@@ -74,33 +75,34 @@ fn bool provide_member_access(Context* ctx, List{CompletionItem}* items)
 		}
 		case INSTANCE:
 		{
-			List{SymbolEntry}? candidates = ctx.ws.find_symbol_by_name(ctx.base_identifier);
-			if (catch candidates) return false;
-			if (candidates.len() == 0) return false;
-			if (!candidates[0].node) return false;
-			Node* node = candidates[0].node;
-			Cursor node_cursor = { ctx.section, node };
-			switch (node.kind)
+			Cursor node_cursor = cursor::find_at(ctx.section, (int)ctx.base_offset);
+			log::info("instance: %s", node_cursor.node.kind.description);
+			
+			if (node_cursor.is_valid())
 			{
-				case STRUCT_DECL:
-					StructDecl* str_decl = node.as(STRUCT_DECL);
-					foreach (field_node : str_decl.fields)
-					{
-						VarDecl* field = field_node.as(VAR_DECL);
-						Cursor cursor = { ctx.section, field_node };
-						String field_name = cursor.spelling(tmem) ?? "";
+				switch (node_cursor.node.kind)
+				{
+					case STRUCT_DECL:
+						StructDecl* str_decl = node_cursor.node.as(STRUCT_DECL);
+						foreach (field_node : str_decl.fields)
+						{
+							VarDecl* field = field_node.as(VAR_DECL);
+							Cursor cursor = { ctx.section, field_node };
+							String field_name = cursor.spelling(tmem) ?? "";
 
-						if (ctx.prefix.len > 0 && !field_name.contains(ctx.prefix)) break;
-						
-						items.push({
-							.label = field_name,
-							.kind = FIELD,
-							.detail = string::tformat("Field of %s", node_cursor.spelling(tmem) ?? "")
-						});
-					}
-					break;
-				default:
-					break;
+							if (ctx.prefix.len > 0 && !field_name.contains(ctx.prefix)) break;
+							
+							items.push({
+								.label = field_name,
+								.kind = FIELD,
+								.detail = string::tformat("Field of %s", node_cursor.spelling(tmem) ?? "")
+							});
+						}
+						break;
+					default:
+						log::warn("Unhandled kind: %s", node_cursor.node.kind.description);
+						break;
+				}
 			}
 
 			ctx.ws.modules.@each(; name, mod)
@@ -130,6 +132,6 @@ fn bool provide_member_access(Context* ctx, List{CompletionItem}* items)
 
 		default:
 	}
-
+	
 	return false;
 }
