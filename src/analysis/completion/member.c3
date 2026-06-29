@@ -75,36 +75,78 @@ fn bool provide_member_access(Context* ctx, List{CompletionItem}* items)
 		}
 		case INSTANCE:
 		{
-			Cursor node_cursor = cursor::find_at(ctx.section, (int)ctx.base_offset);
-			log::info("instance: %s", node_cursor.node.kind.description);
-			
-			if (node_cursor.is_valid())
-			{
-				switch (node_cursor.node.kind)
-				{
-					case STRUCT_DECL:
-						StructDecl* str_decl = node_cursor.node.as(STRUCT_DECL);
-						foreach (field_node : str_decl.fields)
-						{
-							VarDecl* field = field_node.as(VAR_DECL);
-							Cursor cursor = { ctx.section, field_node };
-							String field_name = cursor.spelling(tmem) ?? "";
+			log::debug("acess: %s", "instance");
+			List{SemaVar} active_vars = ctx.section.get_active_vars((int)ctx.base_offset);
+			Node* var_def = null;
 
-							if (ctx.prefix.len > 0 && !field_name.contains(ctx.prefix)) break;
-							
-							items.push({
-								.label = field_name,
-								.kind = FIELD,
-								.detail = string::tformat("Field of %s", node_cursor.spelling(tmem) ?? "")
-							});
-						}
-						break;
-					default:
-						log::warn("Unhandled kind: %s", node_cursor.node.kind.description);
-						break;
+			foreach (var_entry : active_vars)
+			{
+				Cursor var_cursor = { .section = ctx.section, .node = var_entry.def };
+				log::debug("var spelling: %s", var_cursor.spelling(tmem) ?? "");
+				if ((var_cursor.spelling(tmem) ?? "") == ctx.base_identifier)
+				{
+					var_def = var_entry.def;
+					break;
 				}
 			}
 
+
+			if (!var_def)
+			{
+				log::debug("Could not find local variable declaration for: %s", ctx.base_identifier);
+				return false;
+			}
+
+			ModuleSection* section = workspace::get_section_from_node(ctx.ws, var_def);
+			if (!section)
+			{
+				log::debug("Failed to get section from node");
+				return false;
+			}
+		
+			Cursor type_cursor = { section, var_def.as(VAR_DECL).type };
+			String type_spelling = type_cursor.raw_type_identifier() ?? "";
+
+			log::debug("Checking for type: %s", type_spelling);
+
+			List{SymbolEntry}? candidates = ctx.ws.find_symbol_by_name(type_spelling);
+			if (catch candidates) return false;
+			if (candidates.len() == 0) return false;
+			if (!candidates[0].node) return false;
+			
+			log::debug("found candidate: %s", candidates[0].node.kind);
+
+			section = workspace::get_section_from_node(ctx.ws, candidates[0].node);
+			if (!section)
+			{
+				log::debug("Failed to get section from node");
+				return false;
+			}
+
+			if (candidates[0].node.kind == STRUCT_DECL)
+            {
+                StructDecl* str_decl = candidates[0].node.as(STRUCT_DECL);
+                foreach (field_node : str_decl.fields)
+                {
+                    if (field_node.kind != VAR_DECL) continue;
+					VarDecl* field = field_node.as(VAR_DECL);
+
+                    Cursor field_cursor = { section, field_node };
+                    String field_name = field_cursor.spelling(tmem) ?? "";
+
+					Cursor field_type_cursor = { section, field.type };
+					String field_type_name = field_type_cursor.spelling(tmem) ?? "";
+
+                    if (ctx.prefix.len > 0 && !field_name.contains(ctx.prefix)) continue;
+                    
+                    items.push({
+                        .label = field_name,
+                        .kind = FIELD,
+                        .detail = field_type_name
+                    });
+                }
+            }
+			
 			ctx.ws.modules.@each(; name, mod)
 			{
 				mod.registry.methods.@each(; MethodKey key, List{SymbolEntry} list)
