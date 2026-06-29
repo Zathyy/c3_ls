@@ -17,6 +17,7 @@ struct Context
 	Uri uri;
 	LspPosition position;
 	sz offset;
+	sz base_offset;
 	Workspace* ws;
 	ModuleSection* section;
 	Allocator allocator;
