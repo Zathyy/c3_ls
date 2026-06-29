@@ -11,9 +11,9 @@ import lsp::core;
 
 import uri;
 
-fn LspPosition[]? goto_definition(LspProject* project, Uri uri, LspPosition pos)
+fn LspLocation[]? goto_definition(LspProject* project, Uri uri, LspPosition pos)
 {
-	log::info("hover");
+	log::info("goto definition");
 	Location loc = { 
         .line = (sz)pos.line,
         .column = (sz)pos.character
@@ -35,3 +35,4 @@ fn LspPosition[]? goto_definition(LspProject* project, Uri uri, LspPosition pos)
 
 	return {};//cursor.spelling(tmem);
 }
+

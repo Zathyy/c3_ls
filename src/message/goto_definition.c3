@@ -44,8 +44,8 @@ fn void response(Allocator allocator, LspProject* project, LspMessage* message)
 	}
 	LspPosition pos = message.params.definition.position;
 
-	String? hover = hover::hover(project, file_uri, pos);
-	if (catch err = hover)
+	LspLocation[]? definitions = goto_definition::goto_definition(project, file_uri, pos);
+	if (catch err = definitions)
 	{
 		log::error("Failed to go to definition : %s", err);
 		return;
@@ -54,10 +54,10 @@ fn void response(Allocator allocator, LspProject* project, LspMessage* message)
 	LspGoToDefinitionResponse response = {
 		.jsonrpc = message.rpc,
 		.id = message.id.get() ?? -1,
-		.result = {}
+		.result = definitions
 	};
 	String response_json = translator::encode(response, allocator);
 
-	log::debug("Hover response: %s", response_json);
+	log::debug("Goto definition response: %s", response_json);
 	io_handler::write(response_json);
 }

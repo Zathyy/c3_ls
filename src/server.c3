@@ -20,14 +20,9 @@ LspProject project;
 fn void start(CliArgs args)
 {
 	log::set_logger(&&(LspLogger){});
+	log_level = args.log_level;
 	log::set_priority_all(VERBOSE);
 
-	if (catch err = @try(log_level, LogLevel::lookup_field(name, args.log_level)))
-	{
-		log::error("Unkown log-level %s", args.log_level);
-		log_level = ERROR;
-	}
-	
 	io_handler::init();
 
 	project.init(mem);
