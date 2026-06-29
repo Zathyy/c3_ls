@@ -6,6 +6,14 @@ import std::collections::maybe;
 import dessert;
 import derive;
 
+enum LogLevel : char (String name)
+{
+	NONE  { "none" },
+	DEBUG { "debug" },
+	INFO  { "info" },
+	WARN  { "warn" },
+	ERROR { "error" }
+}
 
 $expand(derive(TraceKind::name, dessert));
 enum TraceKind : char (String name) @DEnum({ .as = FIELD, .field = "name" })
