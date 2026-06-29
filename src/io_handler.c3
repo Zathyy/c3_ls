@@ -93,6 +93,8 @@ fn LspMessage? read(Allocator allocator)
     String json_payload = (String)body[:content_length];
     defer mem::free(body);
 
+	log::debug(json_payload);
+
     IoDecodeResult? decode_result = translator::decode(allocator, json_payload);
     if (catch err = decode_result)
     {
