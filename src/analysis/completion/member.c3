@@ -31,7 +31,6 @@ fn void detect_access_context(Context* ctx)
 			break;
 		}
 	}
-	
 	// If the cursor is at the very end of the file, the operator is the last token
 	if (op_idx == -1) op_idx = ctx.tokens.len() - 1;
 	if (op_idx < 1) return; // Need at least an identifier + operator
@@ -64,13 +63,109 @@ fn bool provide_member_access(Context* ctx, List{CompletionItem}* items)
 	if (ctx.access == NONE || ctx.base_identifier.len == 0) return false;
 	switch (ctx.access)
 	{
+		// resolve '::' with a order of
+		// (ident) locals & params -> module path
+		// (type_ident) TypeResolution
 		case STATIC:
 		{
+			provide_module_paths(ctx, items);
+			List{SemaVar} active_vars = ctx.section.get_active_vars((int)ctx.base_offset);
+			foreach (var_entry : active_vars)
+			{
+				Cursor var_cursor = { .section = ctx.section, .node = var_entry.def };
+				if ((var_cursor.spelling(tmem) ?? "") == ctx.base_identifier)
+				{
+					log::debug("Base identifier '%s' resolved to local variable instance");
+					return provide_type_static_completions(ctx, items, var_entry.def);
+				}
+			}
+
+			Module* target_mod = null;
+			String current_module_name = ctx.section.parent_module.name;
+			String path_suffix = string::tformat("::%s", ctx.base_identifier);
+
+			log::debug("curent_module_name: %s", current_module_name);
+			log::debug("path_suffix: %s", path_suffix);
+			
+			ctx.ws.modules.@each(; mod_name, mod)
+			{
+				do MOD_SEARCH:
+				{
+					log::debug("comparing: %s against %s", ctx.base_identifier, mod_name);
+					if (mod_name == ctx.base_identifier)
+					{
+						target_mod = mod;
+						break MOD_SEARCH;
+					}
+
+					if (current_module_name.len > 0)
+					{
+						String combined_path = string::tformat("%s::%s", current_module_name, ctx.base_identifier);
+						if (mod_name == combined_path)
+						{
+							target_mod = mod;
+							break MOD_SEARCH;
+						}
+					}
+					log::debug("comparing (ends_with): %s against %s", path_suffix, mod_name);
+					if (mod_name.len >= path_suffix.len)
+					{
+						sz suffix_start = mod_name.len - path_suffix.len;
+						bool is_suffix_match = true;
+
+						for (sz i = 0; i < path_suffix.len; i++)
+						{
+							if (mod_name[suffix_start + i] != path_suffix[i])
+							{
+								is_suffix_match = false;
+								break MOD_SEARCH;
+							}
+						}
+						
+						if (is_suffix_match)
+						{
+							log::debug("Suffix match successful for: %s", mod_name);
+							target_mod = mod;
+							break MOD_SEARCH;
+						}
+					}
+				};
+			};
+
+			if (target_mod)
+			{
+				log::debug("Resolved module scope via path cascade: %s", target_mod.name);
+				
+				target_mod.symbols.@each(; symbol_name, symbol_list)
+				{
+					do CHECK:
+					{
+						if (symbol_list.is_empty()) break CHECK;
+						if (ctx.prefix.len > 0 && !symbol_name.contains(ctx.prefix)) break CHECK;
+
+						foreach (entry : symbol_list)
+						{
+							if (entry.node.visibility != PUBLIC) continue;
+							if (entry.node.kind == MODULE_DECL || entry.node.kind == IMPORT_DECL) continue;
+
+							add_symbol_completion(items, symbol_name, entry.node, ctx.base_identifier);
+						}
+					};
+				};
+				
+				return true;
+			}
+
 			List{SymbolEntry}? candidates = ctx.ws.find_symbol_by_name(ctx.base_identifier);
 			if (catch candidates) return false;
 			if (candidates.len() == 0) return false;
-			if (!candidates[0].node) return false;
-			analysis::inject_type_properties(ctx, items, candidates[0].node.kind);
+			if (!candidates[0].node) return false;;
+
+			Node* target_node = candidates[0].node;
+
+			// Otherwise, it's a Type Resolution (e.g., MyStruct::, int::)
+			log::debug("Base identifier '%s' resolved to type kind: %s", ctx.base_identifier, target_node.kind);
+			analysis::inject_type_properties(ctx, items, target_node.kind);
 			return true;
 		}
 		case INSTANCE:
@@ -89,7 +184,6 @@ fn bool provide_member_access(Context* ctx, List{CompletionItem}* items)
 					break;
 				}
 			}
-
 
 			if (!var_def)
 			{
@@ -124,28 +218,28 @@ fn bool provide_member_access(Context* ctx, List{CompletionItem}* items)
 			}
 
 			if (candidates[0].node.kind == STRUCT_DECL)
-            {
-                StructDecl* str_decl = candidates[0].node.as(STRUCT_DECL);
-                foreach (field_node : str_decl.fields)
-                {
-                    if (field_node.kind != VAR_DECL) continue;
+			{
+				StructDecl* str_decl = candidates[0].node.as(STRUCT_DECL);
+				foreach (field_node : str_decl.fields)
+				{
+					if (field_node.kind != VAR_DECL) continue;
 					VarDecl* field = field_node.as(VAR_DECL);
 
-                    Cursor field_cursor = { section, field_node };
-                    String field_name = field_cursor.spelling(tmem) ?? "";
+					Cursor field_cursor = { section, field_node };
+					String field_name = field_cursor.spelling(tmem) ?? "";
 
 					Cursor field_type_cursor = { section, field.type };
 					String field_type_name = field_type_cursor.spelling(tmem) ?? "";
 
-                    if (ctx.prefix.len > 0 && !field_name.contains(ctx.prefix)) continue;
-                    
-                    items.push({
-                        .label = field_name,
-                        .kind = FIELD,
-                        .detail = field_type_name
-                    });
-                }
-            }
+					if (ctx.prefix.len > 0 && !field_name.contains(ctx.prefix)) continue;
+					
+					items.push({
+						.label = field_name,
+						.kind = FIELD,
+						.detail = field_type_name
+					});
+				}
+			}
 			
 			ctx.ws.modules.@each(; name, mod)
 			{
@@ -170,10 +264,30 @@ fn bool provide_member_access(Context* ctx, List{CompletionItem}* items)
 			};
 			
 			return true;
-		}
+		}	
+
 
 		default:
 	}
 	
 	return false;
+}
+
+fn bool provide_type_static_completions(Context* ctx, List{CompletionItem}* items, Node* var_def)
+{
+	ModuleSection* section = workspace::get_section_from_node(ctx.ws, var_def);
+	if (!section) return false;
+
+	Cursor type_cursor = { section, var_def.as(VAR_DECL).type };
+	String type_spelling = type_cursor.raw_type_identifier() ?? "";
+	if (type_spelling.len == 0) return false;
+
+	List{SymbolEntry}? candidates = ctx.ws.find_symbol_by_name(type_spelling);
+	if (catch candidates) return false;
+	if (candidates.len() == 0) return false;
+	if (!candidates[0].node) return false;
+
+	log::debug("Injecting reflection properties for instance variable type: %s", type_spelling);
+	analysis::inject_type_properties(ctx, items, candidates[0].node.kind);
+	return true;
 }
