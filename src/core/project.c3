@@ -28,6 +28,7 @@ fn void LspFile.free(&self)
 struct LspProject
 {
 	HashMap{String, LspFile*} files;
+	List{FileInput} process_queue;
 	Workspace workspace;
 	ProjectConfig config;
 	HashMap{String, ManifestConfig} manifests;
@@ -38,6 +39,7 @@ fn void LspProject.init(&self, Allocator allocator)
 {
 	self.allocator = allocator;
 	self.files.init(allocator);
+	self.process_queue.init(allocator);
 	self.workspace.init(allocator, { .use_sema = true });
 }
 
@@ -50,6 +52,7 @@ fn void LspProject.free(&self)
 		alloc::free(self.allocator, file);
 	};
 	self.files.free();
+	self.process_queue.free();
 	self.config.free(self.allocator);
 	self.manifests.@each(; name, conf)
 	{
