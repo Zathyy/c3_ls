@@ -50,17 +50,6 @@ fn void provide_global(Context* ctx, List{CompletionItem}* items)
 	};
 }
 
-fn void add_symbol_completion(List{CompletionItem}* items, String symbol_name, Node* node, String mod_name) @local
-{
-	items.push({
-		.label = symbol_name,
-		.kind = analysis::completion_kind_from_node(node),
-		.detail = mod_name,
-		.documentation = string::tformat("Symbol declared in module '%s'", mod_name),
-		.sort_text = string::tformat("0002_%s", symbol_name)
-	});
-}
-
 fn bool should_include_node(Node* node, Module* mod, Module* current_mod, bool types_only)
 {
 	if (!node || !node.is_valid()) return false;
