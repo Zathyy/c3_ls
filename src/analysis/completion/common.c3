@@ -47,3 +47,58 @@ fn void provide_keywords(Context* ctx, List{CompletionItem}* items)
 		}
 	}
 }
+
+fn void add_symbol_completion(List{CompletionItem}* items, String symbol_name, Node* node, String base_identifier)
+{
+	if (!node) return;
+
+	CompletionItemKind item_kind = CompletionItemKind.VALUE; 
+	String type_desc = "Symbol";
+	String insert_text = symbol_name;
+
+	switch (node.kind)
+	{
+		case FN_DECL:
+			item_kind = FUNCTION;
+			type_desc = "fn";
+			insert_text = string::tformat("%s()", insert_text);
+			break;
+
+		case STRUCT_DECL:
+			item_kind = STRUCT;
+			type_desc = "struct";
+			break;
+
+		case ENUM_DECL:
+			item_kind = ENUM;
+			type_desc = "enum";
+			break;
+
+		case VAR_DECL:
+			{
+				VarDecl* decl = node.as(VAR_DECL);
+				if (decl.flags.is_const)
+				{
+					item_kind = CONSTANT;
+					type_desc = "constant";
+					break;
+				}
+
+				item_kind = VARIABLE;
+				type_desc = "global var";
+				break;
+			}
+		default:
+			break;
+	}
+
+	String detail_string = string::tformat("%s via %s", type_desc, base_identifier);
+	
+	items.push({
+		.label = symbol_name,
+		.kind = item_kind,
+		.detail = detail_string,
+		.insert_text = insert_text,
+		.sort_text = string::tformat("0001_%s", symbol_name)
+	});
+}
