@@ -15,7 +15,7 @@ fn void provide_locals(Context* ctx, List{CompletionItem}* items)
 {
 	if (ctx.scope != EXECUTION) return;
 	if (ctx.access != NONE) return;
-    
+
 	ModuleSection* sec = ctx.section;
 
 	List{SemaVar} active_vars = sec.get_active_vars((int)ctx.offset);
@@ -34,12 +34,12 @@ fn void provide_locals(Context* ctx, List{CompletionItem}* items)
 		{
 			type_name = type_cursor.spelling(tmem) ?? "";
 		}
-
+		
         String details;
 		CompletionItemKind kind;
 		switch (true)
 		{
-		case decl.flags.is_const: 
+		case decl.flags.is_const:
 			kind = CONSTANT;
 			details = string::tformat("(constant) %s", type_name);
 			break;
