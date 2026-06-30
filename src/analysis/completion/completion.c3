@@ -7,6 +7,7 @@ import analyzer::sema;
 
 import std::collections::list;
 import std::collections::map;
+import std::collections::set;
 
 import lsp::core;
 import uri;
@@ -76,6 +77,17 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
 	ctx.offset = offset;
 	ctx.prefix = analysis::extract_prefix(sf.source, (sz)offset).trim();
 
+	if (offset > 0 && sf.source[offset - 1] == ':')
+    {
+        if (offset < 2 || sf.source[offset - 2] != ':')
+        {
+            log::debug("Aborting completion: Triggered by a single ':' context.");
+            return items.array_view(); 
+        }
+    }
+
+	
+
 	Location res_loc = sf.line_map.resolve(offset);
 
 	log::info("resolve - parser location: %s:%s", res_loc.line + 1, res_loc.column + 1);
@@ -113,6 +125,7 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
 	}
 
 	provide_global(&ctx, &items);
+	provide_module_paths(&ctx, &items);
 	provide_keywords(&ctx, &items);
 
 	return items.array_view();
