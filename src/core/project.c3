@@ -2,6 +2,9 @@ module lsp::core;
 
 import std::io;
 import std::collections::map;
+import std::collections::list;
+
+import std::compression::zip;
 
 import lsp::analysis;
 import lsp::msg_handler::publish_diag;
@@ -11,6 +14,7 @@ import derive;
 import analyzer::core;
 import analyzer::workspace;
 import uri;
+import lsp::utils;
 
 struct LspFile
 {
@@ -111,15 +115,7 @@ fn void LspProject.open_file(&self, TextDocumentItem document, bool is_std_lib =
 		};
 	}
 
-	ProcessResult? result = result = workspace::process(&self.workspace, self.allocator, file);
-	if (catch err = result)
-	{   
-		log::error("Parsing failure on target file: %s (Error: %s)", lookup_key, err);
-		return;
-	}
-	defer result.free();
-
-	publish_diag::publish(self.allocator, file_uri, &result);
+	self.process_queue.push(file);
 }
 
 fn void LspProject.change_file(&self, DidChangeParams params)
@@ -140,7 +136,7 @@ fn void LspProject.change_file(&self, DidChangeParams params)
 	{
 		log::warn("File %s is not already tracking in workspace", lookup_key);
 		return;
-	} 
+	}
 
 	LspFile* file = self.files.get(lookup_key) ?? null;
 	if (!file) return;
@@ -158,15 +154,7 @@ fn void LspProject.change_file(&self, DidChangeParams params)
 		.source_text = file.text,
 		.uri = lookup_key
 	};
-	ProcessResult? result = result = workspace::process(&self.workspace, self.allocator, input);
-	if (catch err = result)
-	{   
-		log::error("Parsing failure on target file: %s (Error: %s)", lookup_key, err);
-		return;
-	}
-	defer result.free();
-
-	publish_diag::publish(self.allocator, file.uri, &result);
+	self.process_queue.push(input);
 }
 
 fn void LspProject.close_file(&self, DocumentUri document)
@@ -193,6 +181,34 @@ fn void LspProject.close_file(&self, DocumentUri document)
 	self.files.remove(lookup_key);
 }
 
+fn void LspProject.update(&self)
+{
+	if (self.process_queue.is_empty()) return;
+
+	FileInput[] files = self.process_queue.array_view();
+	defer self.process_queue.clear();
+	ProcessResult? result = result = workspace::process_batch(&self.workspace, self.allocator, files);
+	if (catch err = result)
+	{   
+		log::error("Parsing failure (Error: %s)", err);
+		return;
+	}
+	defer result.free();
+	publish_diag::publish(self.allocator, files, &result);
+}
+
+fn void LspProject.initial_process(&self)
+{
+	self.process_stdlib();
+	self.process_config();
+	self.process_libs();
+}
+
+fn void LspProject.process_stdlib(&self)
+{
+
+}
+
 fn void LspProject.process_config(&self)
 {
 	Path? base_path = path::tnew(self.config.root_path);
@@ -208,36 +224,160 @@ fn void LspProject.process_config(&self)
 	{
 		String entry_str = source_entry;
 		bool recursive = false;
-        String mask = "*.c3";
+		String mask = "*.c3";
 
 		if (entry_str.ends_with("/**"))
-        {
-            entry_str = entry_str.strip_suffix("/**");
-            recursive = true;
-        }
+		{
+			entry_str = entry_str.strip_suffix("/**");
+			recursive = true;
+		}
 
 		Path? entry_path = base_path.tappend(entry_str);
-        if (catch err = entry_path)
-        {
-            log::error("'%s' is not a valid directory layout: %s", entry_str, err);
-            continue;
-        }
+		if (catch err = entry_path)
+		{
+			log::error("'%s' is not a valid directory layout: %s", entry_str, err);
+			continue;
+		}
 
 		log::error("Entry: %s", entry_path);
 		
 		PathList paths;
 		if (catch err = @try(paths, path::ls(tmem, entry_path, no_dirs: true, mask: mask, recursive: recursive, rebase: entry_path)))
-        {
-            log::error("Failed to list directory contents for: %s", entry_str);
-            continue;
-        }
+		{
+			log::error("Failed to list directory contents for: %s", entry_str);
+			continue;
+		}
 
 		foreach (matched : paths)
-        {
+		{
 			log::info("Found path: %s", matched);
 			Uri file_uri = uri::from_file_path(tmem, matched);
 			DocumentUri uri = (DocumentUri)file_uri.to_raw_string(tmem);
 			self.open_file({ .uri = uri }, true);
-        }
+		}
 	}
+}
+
+fn void LspProject.process_libs(&self)
+{
+	Path? base_path = path::tnew(self.config.root_path);
+	if (catch err = base_path)
+	{
+		log::error("Config base path is not valid for parsing libraries.");
+		return;
+	}
+
+	String[] deps = self.config.dependencies.get() ?? {};
+	foreach (dep_name : deps)
+	{
+		String lib_target_name = string::tformat("%s.c3l", dep_name);
+		bool lib_found = false;
+
+		String[] search_paths = self.config.dependency_search_paths.get() ?? {};
+		foreach (search_entry : search_paths)
+		{
+			Path? search_base = base_path.tappend(search_entry);
+			if (catch search_base) continue;
+
+			Path? lib_path = search_base.tappend(lib_target_name);
+			if (catch lib_path) continue;
+
+			if (!path::exists(lib_path)) continue;
+
+			lib_found = true;
+			Path scan_target = lib_path; 
+			bool is_compressed = path::is_file(lib_path);
+
+			if (is_compressed)
+			{
+				if (lib_path.has_extension("c3i"))
+				{
+					log::debug("Found a declaration file (.c3i) at: %s", lib_path);
+					
+				}	
+				else
+				{
+					log::debug("Found a compressed library archive (.c3l file) at: %s", lib_path);
+					
+					Path? cache_root = cache::get_or_create_cache_dir(self.config.root_path);
+					if (catch cache_root) continue;
+					Path? cache_target_dir = cache_root.tappend(dep_name);
+					if (catch cache_target_dir) continue;
+					if (catch cache::is_library_outdated(dep_name, cache_target_dir, lib_path))
+					{
+						log::info("Cache is stale or missing for %s. Extracting...", dep_name);
+						
+						if (path::exists(cache_target_dir))
+						{
+							(void)path::rmtree(cache_target_dir);
+						}
+						if (catch err = path::mkdir(cache_target_dir, recursive: true))
+						{
+							log::error("Failed to create cache_target dir: %s", err);
+							continue;
+						}
+						
+						if (decompress_library(lib_path, cache_target_dir))
+						{
+							if (catch err = cache::update_library_meta(dep_name, cache_root, lib_path))
+							{
+								log::error("Failed to update meta file: %s", err);
+							}
+						}
+					}
+					else 
+					{
+						log::info("Cache hit for library %s. No offline modifications detected.", dep_name);
+					}
+					
+					scan_target = cache_target_dir;
+				}
+			}
+			else
+			{
+				log::info("Found an uncompressed library folder (.c3l folder) at: %s", lib_path);
+			}
+
+
+
+			String[] paths = utils::find_source_files(tmem, lib_path);
+
+			foreach (matched : paths)
+			{
+				log::info("Found internal library source: %s", matched);
+				Uri file_uri = uri::from_file_path(tmem, matched);
+				DocumentUri uri = (DocumentUri)file_uri.to_raw_string(tmem);
+				self.open_file({ .uri = uri }, true);
+			}
+
+			break;
+		}
+	}
+}
+
+<*
+ Extracts a zipped library archive to a target cache directory.
+ @param source_archive  : `Path to the .c3l / .zip file (e.g., "libs/glfw.c3l")`
+ @param cache_target_dir: `Path to the destination directory (e.g., ".lsp-cache/glfw")`
+*>
+fn bool decompress_library(String source_archive, Path cache_target_dir)
+{
+    log::info("Extracting archive %s to %s", source_archive, cache_target_dir);
+
+    ZipArchive? archive = zip::open(tmem, source_archive, "r");
+    if (catch err = archive)
+    {
+        log::error("Failed to open zip archive: %s", source_archive);
+        return false;
+    }
+
+    if (catch err = archive.extract(cache_target_dir))
+    {
+        log::error("Extraction failed for %s", source_archive);
+        (void)archive.close();
+        return false;
+    }
+
+    (void)archive.close();
+    return true;
 }

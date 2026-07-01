@@ -39,11 +39,6 @@ fn void start(CliArgs args)
 	logger::init();
 	defer logger::close();
 
-	if (try path = args.stdlib_path.get())
-	{
-		process_stdlib(path);
-	}
-
 	loop();
 }
 
@@ -59,6 +54,11 @@ fn void loop()
 		}
 
 		dispatch(&data);
+
+		if (is_ready)
+		{
+			project.update();
+		}
 	};
 }
 
@@ -83,7 +83,7 @@ fn void dispatch(LspMessage* message)
 		case INITIALIZED:
 			log::info("received Initialized");
 			is_ready = true;
-			project.process_config();
+			project.initial_process();
 		case DID_OPEN:
 			project.open_file(message.params.did_open.document);
 		case DID_CHANGE:
