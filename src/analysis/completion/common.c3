@@ -56,26 +56,31 @@ fn void add_symbol_completion(List{CompletionItem}* items, String symbol_name, N
 	String type_desc = "Symbol";
 	String insert_text = symbol_name;
 
+	InsertTextFormat format = PLAIN_TEXT;
+
 	switch (node.kind)
 	{
 		case FN_DECL:
 			item_kind = FUNCTION;
 			type_desc = "fn";
-			insert_text = string::tformat("%s()", insert_text);
+			insert_text = string::tformat("%s($1)", insert_text);
+			format = SNIPPET;
 			break;
-
+		
 		case MACRO_DECL:
 			item_kind = FUNCTION;
 			type_desc = "macro";
-			insert_text = string::tformat("%s()", insert_text);
+			insert_text = string::tformat("%s($1)", insert_text);
+			format = SNIPPET;
 			break;
-			
+
 		case INTERFACE_DECL:
 			item_kind = INTERFACE;
 			type_desc = "interface";
-			insert_text = string::tformat("%s()", insert_text);
+			insert_text = string::tformat("%s($1)", insert_text);
+			format = SNIPPET;
 			break;
-
+		
 		case STRUCT_DECL:
 			item_kind = STRUCT;
 			type_desc = "struct";
@@ -105,12 +110,19 @@ fn void add_symbol_completion(List{CompletionItem}* items, String symbol_name, N
 	}
 
 	String detail_string = string::tformat("%s via %s", type_desc, base_identifier);
+
+	String filter_text = symbol_name;
+	if (filter_text.len > 0 && filter_text[0] == '@')
+	{
+		filter_text = filter_text[1..];
+	}
 	
 	items.push({
 		.label = symbol_name,
 		.kind = item_kind,
 		.detail = detail_string,
 		.insert_text = insert_text,
+		.filter_text = filter_text,
 		.sort_text = string::tformat("0001_%s", symbol_name)
 	});
 }
