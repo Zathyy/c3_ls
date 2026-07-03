@@ -16,7 +16,7 @@ Run the following commands in your terminal:
 
 ```bash
 # 1. Clone the repository with its submodules
-git clone --recursive [https://github.com/yourusername/c3_ls.git](https://github.com/yourusername/c3_ls.git)
+git clone --recursive https://github.com/Zathyy/c3_ls.git
 
 # 2. Navigate into the project directory
 cd c3_ls
