@@ -12,11 +12,23 @@ fn String extract_prefix(String text, sz byte_offset)
 	while (start_idx > 0)
 	{
 		char c = text[start_idx - 1];
-		if (c.is_alnum() || c == '_') {
+		if (c.is_alnum() || c == '_') 
+		{
 			start_idx--;
 		}
-		else {
-			break;
+		else 
+		{
+			switch (c)
+			{
+				case '@':
+				case '#':
+				case '$':
+					start_idx--;
+					break;
+				default: 
+					break;
+			}
+            break;
 		}
 	}
 
