@@ -64,6 +64,18 @@ fn void add_symbol_completion(List{CompletionItem}* items, String symbol_name, N
 			insert_text = string::tformat("%s()", insert_text);
 			break;
 
+		case MACRO_DECL:
+			item_kind = FUNCTION;
+			type_desc = "macro";
+			insert_text = string::tformat("%s()", insert_text);
+			break;
+			
+		case INTERFACE_DECL:
+			item_kind = INTERFACE;
+			type_desc = "interface";
+			insert_text = string::tformat("%s()", insert_text);
+			break;
+
 		case STRUCT_DECL:
 			item_kind = STRUCT;
 			type_desc = "struct";
