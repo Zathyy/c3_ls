@@ -15,8 +15,12 @@ import analyzer::core::lexer;
 
 fn void provide_module_paths(Context* ctx, List{CompletionItem}* items)
 {
+	if (ctx.access != NONE) return;
+	if (ctx.scope != EXECUTION) return;
 	String current_mod = ctx.section.parent_module.name;
 	HashSet{String} added_segments;
+
+
 
 	ctx.ws.modules.@each(; name, mod)
 	{
@@ -62,7 +66,7 @@ fn String get_remaining_path(String name, String base_id, LspAccessKind access)
 	{
 		return name;
 	}
-
+	
 	String root_marker = string::tformat("%s::", base_id);
 	String nested_marker = string::tformat("::%s::", base_id);
 
