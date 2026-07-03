@@ -15,6 +15,7 @@ import analyzer::core;
 import analyzer::workspace;
 import uri;
 import lsp::utils;
+import lsp::server;
 
 struct LspFile
 {
@@ -206,7 +207,19 @@ fn void LspProject.initial_process(&self)
 
 fn void LspProject.process_stdlib(&self)
 {
-
+	Path? base_path = path::tnew(server::std_path);
+	if (catch err = base_path)
+	{
+		log::error("Invalid stdlib path %s", err);
+		return;
+	}
+	String[] paths = utils::find_source_files(tmem, base_path);
+	foreach (matched : paths)
+	{
+		Uri file_uri = uri::from_file_path(tmem, matched);
+		DocumentUri uri = (DocumentUri)file_uri.to_raw_string(tmem);
+		self.open_file({ .uri = uri }, true);
+	}
 }
 
 fn void LspProject.process_config(&self)
