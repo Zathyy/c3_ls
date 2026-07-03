@@ -17,7 +17,7 @@ fn void provide_global(Context* ctx, List{CompletionItem}* items)
 	
 	bool types_only = false;
 	Module* current_mod = ctx.section.parent_module;
-
+	
 	if (ctx.scope == GLOBAL)
 	{
 		types_only = true;
@@ -50,11 +50,21 @@ fn void provide_global(Context* ctx, List{CompletionItem}* items)
 	};
 }
 
-fn bool should_include_node(Node* node, Module* mod, Module* current_mod, bool types_only)
+fn bool should_include_node(Node* node, Module* mod, Module* current_mod, bool types_only) @local
 {
 	if (!node || !node.is_valid()) return false;
 	if (mod == current_mod) return false;
 	if (node.visibility != PUBLIC) return false;
+
+	if (mod != current_mod)
+	{
+		switch (node.kind)
+		{
+			case VAR_DECL:
+				return false;
+			default:
+		}
+	}
 	
 	switch (node.kind)
 	{
