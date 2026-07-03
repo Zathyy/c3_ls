@@ -43,7 +43,7 @@ fn void provide_global(Context* ctx, List{CompletionItem}* items)
 						continue;
 					}
 					
-					add_symbol_completion(items, symbol_name, entry.node, mod_name);
+					add_symbol_completion(items, symbol_name, entry.node, mod_name, ctx.prefix);
 				}
 			};
 		};

@@ -48,14 +48,18 @@ fn void provide_keywords(Context* ctx, List{CompletionItem}* items)
 	}
 }
 
-fn void add_symbol_completion(List{CompletionItem}* items, String symbol_name, Node* node, String base_identifier)
+fn void add_symbol_completion(List{CompletionItem}* items, String symbol_name, Node* node, String base_identifier, String prefix = "")
 {
 	if (!node) return;
-
+	
 	CompletionItemKind item_kind = CompletionItemKind.VALUE; 
 	String type_desc = "Symbol";
 	String insert_text = symbol_name;
-
+	if (prefix.len > 0 && prefix.starts_with("@"))
+	{
+		insert_text = symbol_name.strip_prefix("@");
+	}
+	
 	InsertTextFormat format = PLAIN_TEXT;
 
 	switch (node.kind)
@@ -80,7 +84,7 @@ fn void add_symbol_completion(List{CompletionItem}* items, String symbol_name, N
 			insert_text = string::tformat("%s($1)", insert_text);
 			format = SNIPPET;
 			break;
-		
+			
 		case STRUCT_DECL:
 			item_kind = STRUCT;
 			type_desc = "struct";
@@ -100,7 +104,7 @@ fn void add_symbol_completion(List{CompletionItem}* items, String symbol_name, N
 					type_desc = "constant";
 					break;
 				}
-
+				
 				item_kind = VARIABLE;
 				type_desc = "global var";
 				break;
