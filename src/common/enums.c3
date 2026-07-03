@@ -23,6 +23,13 @@ enum TraceKind : char (String name) @DEnum({ .as = FIELD, .field = "name" })
 	VERBOSE  { "verbose" }
 }
 
+$expand(derive(InsertTextFormat::name, dessert));
+constdef InsertTextFormat : int
+{
+	PLAIN_TEXT = 1,
+	SNIPPET = 2,
+}
+
 $expand(derive(DiagnosticSeverity::name, dessert));
 constdef DiagnosticSeverity : int
 {

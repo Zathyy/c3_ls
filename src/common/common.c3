@@ -117,6 +117,8 @@ struct CompletionItem @DStruct({ .rename_all = CAMEL_CASE })
     *>
     String detail;
 	String insert_text;
+	InsertTextFormat insert_text_format;
+	String filter_text;
 	String sort_text @DField({ .skip_if_empty = true });
 	String documentation @DField({ .skip_if_empty = true });
 }
