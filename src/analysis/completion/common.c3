@@ -108,7 +108,7 @@ fn void add_symbol_completion(List{CompletionItem}* items, String symbol_name, N
 		default:
 			break;
 	}
-
+	
 	String detail_string = string::tformat("%s via %s", type_desc, base_identifier);
 
 	String filter_text = symbol_name;
@@ -122,6 +122,7 @@ fn void add_symbol_completion(List{CompletionItem}* items, String symbol_name, N
 		.kind = item_kind,
 		.detail = detail_string,
 		.insert_text = insert_text,
+		.insert_text_format = format,
 		.filter_text = filter_text,
 		.sort_text = string::tformat("0001_%s", symbol_name)
 	});
