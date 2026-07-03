@@ -15,6 +15,7 @@ bool is_ready;
 bool running @local;
 LogLevel log_level;
 String log_path;
+String std_path;
 LspProject project;
 
 fn void start(CliArgs args)
@@ -34,6 +35,11 @@ fn void start(CliArgs args)
 	{
 		log::info("Set logging to path = %s", log);
 		log_path = log;
+	}
+
+	if (try val = args.stdlib_path.get())
+	{
+		std_path = val;
 	}
 
 	logger::init();
