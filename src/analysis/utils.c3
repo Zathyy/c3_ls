@@ -85,11 +85,6 @@ fn ScopeKind find_scope(Context* ctx, int cursor_pos)
 			break;
 	}
 
-	String src = ctx.section.source_file.source;
-	Lexer lexer = {
-		.buffer = src[node.offset.start .. node.offset.end],
-	};
-	
 	switch (node.kind)
 	{
 		case STRUCT_DECL:
