@@ -18,7 +18,7 @@ fn String? hover(LspProject* project, Uri uri, LspPosition pos)
         .line = (sz)pos.line,
         .column = (sz)pos.character
     };
-
+	
     log::info("resolve - editor location: %s:%s", loc.line + 1, loc.column + 1);
     
     List{ModuleSection*} file_sections = project.workspace.find_section_by_path(uri.path);
@@ -33,5 +33,13 @@ fn String? hover(LspProject* project, Uri uri, LspPosition pos)
 	Cursor cursor = cursor::find_at(file_sections.get(0), (int) offset);
 	if (!cursor.is_valid()) return "";
 
-	return cursor.spelling(tmem);
+	switch (cursor.node.kind)
+	{
+		case FN_DECL:
+		case STRUCT_DECL:
+		case MACRO_DECL:
+			return cursor.signature_text();
+		default:
+			return cursor.spelling(tmem);
+	}
 }

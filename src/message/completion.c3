@@ -34,6 +34,14 @@ struct LspCompletionResponse
 	}
 }
 
+$expand(derive(LspCompletionResolveResponse::name, dessert));
+struct LspCompletionResolveResponse
+{
+	String jsonrpc;
+	int id;
+	CompletionItem result;
+}
+
 fn void response(Allocator allocator, LspProject* project, LspMessage* message)
 {
 	log::info("URI: %s", message.params.completion.text_document.uri);
@@ -59,5 +67,30 @@ fn void response(Allocator allocator, LspProject* project, LspMessage* message)
 	String response_json = translator::encode(res, allocator);
 
 	log::debug("complete response: %s", response_json);
+	io_handler::write(response_json);
+}
+
+fn void resolve_response(Allocator allocator, LspProject* project, LspMessage* message)
+{
+	CompletionItemResolveParams payload = message.params.completion_resolve;
+	log::info("Resolving documentation item for: %s", payload.label);
+
+	CompletionItem resolved_item = {
+		.label = payload.label,
+		.kind = (CompletionItemKind)payload.kind,
+		.detail = payload.detail,
+	};
+
+	(void)completion::resolve_item(project, &payload.item);
+
+	LspCompletionResolveResponse res = {
+		.jsonrpc = message.rpc,
+		.id = message.id.get() ?? -1,
+		.result = resolved_item
+	};
+	
+	String response_json = translator::encode(res, allocator);
+
+	log::debug("Resolve response content: %s", response_json);
 	io_handler::write(response_json);
 }

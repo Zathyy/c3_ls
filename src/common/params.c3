@@ -74,7 +74,7 @@ enum MessageKind : char (String name) @DEnum({ .as = FIELD, .field = "name", .fa
 	TYPE_SUPERTYPES  { "typeHierarchy/supertypes" },
 	TYPE_SUBTYPES    { "typeHierarchy/subtypes" },
 
-	// COMPLETION_RESOLVE { "completionItem/resolve" },
+	COMPLETION_RESOLVE { "completionItem/resolve" },
 
 	SHUTDOWN     { "shutdown" },
 	EXIT         { "exit" },
@@ -93,6 +93,7 @@ union MessageParams
 	DidCloseParams did_close;
 	HoverParams hover;
 	CompletionParams completion;
+	CompletionItemResolveParams completion_resolve;
 	GoToDefinitionParams definition;
 
 	PublishDiagnosticsParams pub_diag;
@@ -164,6 +165,12 @@ struct CompletionParams @DStruct({ .rename_all = CAMEL_CASE })
 	}
 	LspPosition position;
 	CompletionContext context;
+}
+
+$expand(derive(CompletionItemResolveParams::name, dessert));
+struct CompletionItemResolveParams
+{
+	inline CompletionItem item;
 }
 
 $expand(derive(PublishDiagnosticsParams::name, dessert));

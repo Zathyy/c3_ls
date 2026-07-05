@@ -148,7 +148,7 @@ fn bool provide_member_access(Context* ctx, List{CompletionItem}* items)
 							if (entry.node.visibility != PUBLIC) continue;
 							if (entry.node.kind == MODULE_DECL || entry.node.kind == IMPORT_DECL) continue;
 
-							add_symbol_completion(items, symbol_name, entry.node, ctx.base_identifier);
+							add_symbol_completion(ctx, items, symbol_name, entry.node, ctx.base_identifier);
 						}
 					};
 				};

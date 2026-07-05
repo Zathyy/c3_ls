@@ -28,7 +28,7 @@ fn void start(CliArgs args)
 
 	project.init(mem);
 	defer project.free();
-
+	
 	running = true;
 
 	if (try log = args.log_path.get())
@@ -98,6 +98,8 @@ fn void dispatch(LspMessage* message)
 			project.close_file(message.params.did_close.document.uri);
 		case COMPLETION:
 			completion::response(tmem, &project, message);
+		case COMPLETION_RESOLVE:
+			completion::resolve_response(tmem, &project, message);
 		case HOVER:
 			hover::response(tmem, &project, message);
 		case DEFINITION:

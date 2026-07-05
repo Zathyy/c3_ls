@@ -40,7 +40,7 @@ fn void provide_keywords(Context* ctx, List{CompletionItem}* items)
 		{
 			items.push({
 				.label = kw.name,
-				.documentation = kw.docs,
+				.documentation = { .value = kw.docs },
 				.kind = KEYWORD,
 				.sort_text = string::tformat("0010_%s", kw.name),
 			});
@@ -48,7 +48,10 @@ fn void provide_keywords(Context* ctx, List{CompletionItem}* items)
 	}
 }
 
-fn void add_symbol_completion(List{CompletionItem}* items, String symbol_name, Node* node, String base_identifier, String prefix = "")
+<*
+ ffoooo basdarsfdasfasfas
+*>
+fn void add_symbol_completion(Context* ctx, List{CompletionItem}* items, String symbol_name, Node* node, String base_identifier, String prefix = "")
 {
 	if (!node) return;
 	
@@ -128,6 +131,7 @@ fn void add_symbol_completion(List{CompletionItem}* items, String symbol_name, N
 		.insert_text = insert_text,
 		.insert_text_format = format,
 		.filter_text = filter_text,
-		.sort_text = string::tformat("0001_%s", symbol_name)
+		.sort_text = string::tformat("0001_%s", symbol_name),
+		.data = string::tformat("%d;%s", ctx.section.id, symbol_name)
 	});
 }

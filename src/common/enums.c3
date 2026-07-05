@@ -15,6 +15,13 @@ enum LogLevel : char (String name)
 	ERROR { "error" }
 }
 
+$expand(derive(MarkupKind::name, dessert));
+constdef MarkupKind : inline String
+{
+	PLAIN_TEXT = "plaintext",
+	MARKDOWN = "markdown"
+}
+
 $expand(derive(TraceKind::name, dessert));
 enum TraceKind : char (String name) @DEnum({ .as = FIELD, .field = "name" })
 {
@@ -44,13 +51,6 @@ constdef DiagnosticTag : int
 {
 	UNNECESSARY = 1,
 	DEPRECATED = 2,
-}
-
-$expand(derive(MarkupKind::name, dessert));
-enum MarkupKind : char (String name) @DEnum({ .as = FIELD, .field = "name" })
-{
-	PLAIN_TEXT { "plaintext" },
-	MARKDOWN   { "markdown" }
 }
 
 $expand(derive(TextDocumentSyncKind::name, dessert));

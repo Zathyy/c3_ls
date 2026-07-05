@@ -41,11 +41,13 @@ fn void ProjectConfig.free(&self, Allocator allocator)
 	{
 		alloc::free(allocator, val);
 	}
-
-	self.targets.@each(; name, conf)
+	if (self.targets.is_initialized())
 	{
-		conf.free(allocator);
-	};
+		self.targets.@each(; name, conf)
+		{
+			conf.free(allocator);
+		};
+	}
 
 	self.targets.free();
 }

@@ -19,9 +19,7 @@ fn void provide_module_paths(Context* ctx, List{CompletionItem}* items)
 	if (ctx.scope != EXECUTION) return;
 	String current_mod = ctx.section.parent_module.name;
 	HashSet{String} added_segments;
-
-
-
+	
 	ctx.ws.modules.@each(; name, mod)
 	{
 		do SCOPE:

@@ -51,7 +51,7 @@ fn void publish(Allocator allocator, FileInput[] processed_files, ProcessResult*
 {
 	HashSet{String} files_with_errors;
 	files_with_errors.tinit();
-
+	
 	List{LspDiagnostic} diags;
 	diags.tinit();
 

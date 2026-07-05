@@ -48,6 +48,55 @@ fn void context_populate_tokens(Context* ctx)
     }
 }
 
+<*
+ @param [&inout] item
+*>
+fn void? resolve_item(LspProject* project, CompletionItem* item)
+{
+	if (!item.data) return;
+    String metadata = item.data;
+
+	sz split_idx = metadata.index_of_char(';') ?? -1;
+    if (split_idx < 0) return;
+
+	String id_str = metadata[..split_idx];
+    String symbol_name = metadata[split_idx + 1..];
+	
+	ulong section_id = id_str.to_ulong() ?? 0;
+
+	ModuleSection* section = workspace::get_section_from_id(&project.workspace, section_id);
+    if (!section) return;
+
+	List{SymbolEntry}*? entries = project.workspace.lookup_in_module(section.parent_module.name, symbol_name);
+    if (catch err = entries)
+	{
+		log::error("Failed to acquire symbol: %s", err);
+		return;
+	}
+	if (entries == null) return;
+	SymbolEntry entry = entries.get(0);
+
+	switch (entry.node.kind)
+	{
+		case FN_DECL:
+		{
+			item.documentation.kind = MARKDOWN;
+			Cursor cursor = { section, entry.node };
+			String signature = cursor.signature_text() ?? "fn";
+			FnDecl* decl = entry.node.as(FN_DECL);
+			if (try val = decl.contract.get())
+			{
+				item.documentation.value = analysis::format_contract_markdown(section, val.as(CONTRACT_DECL), signature);
+			}
+			else
+			{
+				item.documentation.value = signature;
+			}
+		}
+		default:
+	}
+}
+
 fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
 {
 	log::debug("resolve");
@@ -134,7 +183,7 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
 fn void provide_imports(Context* ctx, List{CompletionItem}* items)
 {
 	HashMap{String, Module*} modules = ctx.ws.modules;
-
+	
 	modules.@each(; name, mod)
 	{
 		do SCOPE:
@@ -143,16 +192,19 @@ fn void provide_imports(Context* ctx, List{CompletionItem}* items)
 			{
 				break SCOPE;
 			}
-
+			
 			items.push({
 				.label = name,
 				.kind = MODULE,
 				.detail = "Module",
 				.sort_text = string::tformat("0001_%s", name),
-				.documentation = string::tformat("Import the `%s` module into this file context.", name)
+				.documentation = { .value = string::tformat("Import the `%s` module into this file context.", name) }
 			});
 		};
 	};
 
 	ctx.prefix = "\0_CONTEXT_LOCK_";
 }
+
+
+

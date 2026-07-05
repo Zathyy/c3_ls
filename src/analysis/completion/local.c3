@@ -17,7 +17,7 @@ fn void provide_locals(Context* ctx, List{CompletionItem}* items)
 	if (ctx.access != NONE) return;
 
 	ModuleSection* sec = ctx.section;
-
+	
 	List{SemaVar} active_vars = sec.get_active_vars((int)ctx.offset);
 
 	foreach (var_entry : active_vars)

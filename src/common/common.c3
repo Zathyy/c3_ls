@@ -116,11 +116,13 @@ struct CompletionItem @DStruct({ .rename_all = CAMEL_CASE })
 	    about this item, like type or symbol information.
     *>
     String detail;
+	MarkupContent documentation;
 	String insert_text;
 	InsertTextFormat insert_text_format;
 	String filter_text;
 	String sort_text @DField({ .skip_if_empty = true });
-	String documentation @DField({ .skip_if_empty = true });
+	<* custom data *>
+	String data @DField({ .skip_if_empty = true });
 }
 
 $expand(derive(VersionedTextDocumentIdentifier::name, dessert));

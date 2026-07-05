@@ -7,6 +7,8 @@ import std::time;
 
 const String CACHE_DIR_NAME = ".lsp-cache";
 
+//const String DEFAULT_PATH = path::
+
 $expand(derive(MetaData::name, dessert));
 struct MetaData
 {
