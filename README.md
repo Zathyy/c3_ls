@@ -29,10 +29,10 @@ c3c build
 
 | Argument | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `--stdlib-path` | `String` | *None* | Explicit path to the C3 standard library directory. |
+| `--stdlib-path` | `String` | *`c3c --version` to acquire the path* | Explicit path to the C3 standard library directory |
 | `--compiler-path` | `String` | *None* | Absolute path to the C3 compiler (`c3c`) binary. |
 | `--log-path` | `String` | *None* | Output path destination for the language server's log file. |
 | `--cache-path` | `String` | *None* | Overrides the default directory where workspace cache files are stored. |
 | `--log-level` | `LogLevel` | `ERROR` | Sets the minimum logging severity (`DEBUG`, `INFO`, `WARN`, `ERROR`). |
-| `--diagnostics-delay` | `uint` | `0` | Specifies a delay (in milliseconds) before calculating and sending diagnostics as you type. |
-| `--send-crash-reports` | `bool` | `false` | Enables or disables automated crash reporting to help improve stability. |
+| `--diagnostics-delay` | `uint` | `0` | Specifies a delay (in milliseconds) before calculating and sending diagnostics. (not used) |
+| `--send-crash-reports` | `bool` | `false` | Enables or disables automated crash reporting to help improve stability. (not used) |
