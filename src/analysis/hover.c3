@@ -50,15 +50,7 @@ fn String? hover(LspProject* project, Uri uri, LspPosition pos)
 	Cursor cursor = cursor::find_at(file_sections.get(0), (int)offset);
 	if (!cursor.is_valid()) return "";
 
-	switch (cursor.node.kind)
-	{
-		case FN_DECL:
-		case STRUCT_DECL:
-		case MACRO_DECL:
-			return cursor.signature_text();
-		default:
-			return cursor.spelling(tmem);
-	}
+	return cursor.spelling(tmem);
 }
 
 fn String get_keyword_docs(TokenKind kind)
