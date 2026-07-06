@@ -10,6 +10,7 @@ import std::core::log;
 import std::thread;
 import std::time;
 import uri;
+import std::os::process;
 
 bool is_ready;
 bool running @local;
@@ -40,6 +41,17 @@ fn void start(CliArgs args)
 	if (try val = args.stdlib_path.get())
 	{
 		std_path = val;
+	}
+	else
+	{
+		setup_stdlib_path();
+	}
+
+	defer {
+		if (std_path) 
+		{
+			std_path.free(mem);
+		}
 	}
 
 	logger::init();
@@ -117,17 +129,46 @@ fn void dispatch(LspMessage* message)
 	}
 }
 
-fn void process_stdlib(String std_path) => @pool()
+fn void setup_stdlib_path() => @pool()
 {
-	Path path = path::tnew(std_path)!!;
-	PathWalker walker = fn bool? (Path p, bool is_dir, void* data)
+	Process? process = process::spawn({"c3c", "--version"});
+	if (catch err = process)
 	{
-		if (is_dir) return false;
-		Uri file_uri              = uri::from_file_path(tmem, (String)p);
-		DocumentUri formatted_uri = (DocumentUri)file_uri.to_raw_string(tmem);
-		project.open_file({ .uri = formatted_uri, }, true);
-		return false;
-	};
-	path.walk(walker, null)!!;
-	log::warn("Finsihed parsing stdlib");
+		log::error("failed to get compiler version: %s", err);
+		return;
+	}
+
+	const BUF_SIZE = 4096;
+	char[BUF_SIZE] stdout_buf;
+	char[BUF_SIZE] stderr_buf;
+
+	if (catch process.join())
+	{
+		log::error("Failed to join 'c3c_stdlib' process");
+		return;
+	}
+
+	String result;
+
+	if (try long len = process.read_stdout(&stdout_buf, BUF_SIZE)) 
+	{
+		result = (String)stdout_buf[:len];
+	}
+
+	if (try long len = process.read_stderr(&stderr_buf, BUF_SIZE)) 
+	{
+		log::error((String)stderr_buf[:len]);
+	}
+
+	String line = result.trim();
+
+	line = line.split(tmem, "\n")[1];
+	int? index = (int)line.index_of(":");
+	if (catch index) 
+	{
+		return;
+	}
+
+	std_path = string::format(mem, "%s/lib", line[index + 1..].trim());
+	log::info("Set std-lib path: %s", std_path);
 } 
