@@ -100,7 +100,7 @@ fn void add_symbol_completion(Context* ctx, List{CompletionItem}* items, String 
 
 		case VAR_DECL:
 			{
-				VarDecl* decl = node.as(VAR_DECL);
+				VarDecl* decl = node.as(VarDecl);
 				if (decl.flags.is_const)
 				{
 					item_kind = CONSTANT;

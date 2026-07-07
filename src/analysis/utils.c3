@@ -50,12 +50,12 @@ fn CompletionItemKind completion_kind_from_node(Node* node)
 		case STRUCT_DECL:    return STRUCT;
 		case VAR_DECL:
 		{
-			VarDecl* var_decl = node.as(VAR_DECL);
+			VarDecl* var_decl = node.as(VarDecl);
 			if (var_decl.flags.is_const)
 			{
 				return CONSTANT;
 			}
-			switch (var_decl.kind)
+			switch (var_decl.var_kind)
 			{
 				case VAR_FIELD:
 					return FIELD;
@@ -81,14 +81,14 @@ fn ScopeKind find_scope(Context* ctx, int cursor_pos)
 		case IMPORT_DECL: 
 			return IMPORT;
 		case FN_DECL:
-			FnDecl* func = node.as(FN_DECL);
+			FnDecl* func = node.as(FnDecl);
 			if (func.body && cursor_pos >= func.body.offset.start)
 			{
 				return EXECUTION;
 			}
 			break;
 		case MACRO_DECL:
-			MacroDecl* mac = node.as(MACRO_DECL);
+			MacroDecl* mac = node.as(MacroDecl);
 			if (mac.body  && cursor_pos >= mac.body.offset.start) 
 			{
 				return EXECUTION;
@@ -257,6 +257,7 @@ fn String format_contract_markdown(ModuleSection* section, ContractDecl* contrac
 	String? raw_doc = contract.get_comment(pool);
 	if (try raw_doc && raw_doc.len > 0)
 	{
+		log::info("raw doc: %s", raw_doc);
 		String doc_clean = raw_doc.trim().treplace("\"", "");
 		md.appendf("\n%s\n", doc_clean.trim());
 	}
@@ -350,6 +351,8 @@ fn String format_contract_markdown(ModuleSection* section, ContractDecl* contrac
                 break;
         }
     }
+
+	log::info("formatted markdown: %s", escape_buf.str_view());
 
     return escape_buf.str_view();
 }

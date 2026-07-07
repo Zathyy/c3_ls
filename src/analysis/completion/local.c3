@@ -22,7 +22,7 @@ fn void provide_locals(Context* ctx, List{CompletionItem}* items)
 
 	foreach (var_entry : active_vars)
     {
-		VarDecl* decl = var_entry.def.as(VAR_DECL);
+		VarDecl* decl = var_entry.def.as(VarDecl);
         Cursor var_cursor = { .section = ctx.section, .node = var_entry.def };
         String name = var_cursor.spelling(tmem) ?? "";
 
@@ -43,15 +43,15 @@ fn void provide_locals(Context* ctx, List{CompletionItem}* items)
 			kind = CONSTANT;
 			details = string::tformat("(constant) %s", type_name);
 			break;
-		case decl.kind == VAR_GLOBAL:
+		case decl.var_kind == VAR_GLOBAL:
 			kind = VARIABLE;
 			details = string::tformat("(global) %s", type_name);
 			break;
-		case decl.kind == VAR_PARAM:
+		case decl.var_kind == VAR_PARAM:
 			kind = VARIABLE;
 			details = string::tformat("(param) %s", type_name);
 			break;
-		case decl.kind == VAR_LOCAL:
+		case decl.var_kind == VAR_LOCAL:
 			kind = VARIABLE;
 			details = string::tformat("(local) %s", type_name);
 			break;

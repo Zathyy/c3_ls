@@ -198,7 +198,7 @@ fn bool provide_member_access(Context* ctx, List{CompletionItem}* items)
 				return false;
 			}
 		
-			Cursor type_cursor = { section, var_def.as(VAR_DECL).type };
+			Cursor type_cursor = { section, var_def.as(VarDecl).type };
 			String type_spelling = type_cursor.raw_type_identifier() ?? "";
 
 			log::debug("Checking for type: %s", type_spelling);
@@ -219,11 +219,11 @@ fn bool provide_member_access(Context* ctx, List{CompletionItem}* items)
 
 			if (candidates[0].node.kind == STRUCT_DECL)
 			{
-				StructDecl* str_decl = candidates[0].node.as(STRUCT_DECL);
+				StructDecl* str_decl = candidates[0].node.as(StructDecl);
 				foreach (field_node : str_decl.fields)
 				{
 					if (field_node.kind != VAR_DECL) continue;
-					VarDecl* field = field_node.as(VAR_DECL);
+					VarDecl* field = field_node.as(VarDecl);
 
 					Cursor field_cursor = { section, field_node };
 					String field_name = field_cursor.spelling(tmem) ?? "";
@@ -278,7 +278,7 @@ fn bool provide_type_static_completions(Context* ctx, List{CompletionItem}* item
 	ModuleSection* section = workspace::get_section_from_node(ctx.ws, var_def);
 	if (!section) return false;
 
-	Cursor type_cursor = { section, var_def.as(VAR_DECL).type };
+	Cursor type_cursor = { section, var_def.as(VarDecl).type };
 	String type_spelling = type_cursor.raw_type_identifier() ?? "";
 	if (type_spelling.len == 0) return false;
 

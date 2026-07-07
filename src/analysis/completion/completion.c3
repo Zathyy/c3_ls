@@ -83,10 +83,10 @@ fn void? resolve_item(LspProject* project, CompletionItem* item)
 			item.documentation.kind = MARKDOWN;
 			Cursor cursor = { section, entry.node };
 			String signature = cursor.signature_text() ?? "fn";
-			FnDecl* decl = entry.node.as(FN_DECL);
+			FnDecl* decl = entry.node.as(FnDecl);
 			if (try val = decl.contract.get())
 			{
-				item.documentation.value = analysis::format_contract_markdown(section, val.as(CONTRACT_DECL), signature);
+				item.documentation.value = analysis::format_contract_markdown(section, val.as(ContractDecl), signature);
 			}
 			else
 			{

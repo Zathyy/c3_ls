@@ -109,7 +109,7 @@ fn String? extract_symbol_at_cursor(Cursor cursor, sz offset)
 	{
 		case FN_DECL:
 		{
-			FnDecl* fndecl = node.as(FN_DECL);
+			FnDecl* fndecl = node.as(FnDecl);
 			
 			if (!is_offset_in_range(offset, fndecl.name.range)) 
 			{
@@ -120,7 +120,7 @@ fn String? extract_symbol_at_cursor(Cursor cursor, sz offset)
 		}
 		case STRUCT_DECL:
 		{
-			StructDecl* structdecl = node.as(STRUCT_DECL);
+			StructDecl* structdecl = node.as(StructDecl);
 			
 			if (!is_offset_in_range(offset, structdecl.name.range)) return "";
 			
@@ -129,7 +129,7 @@ fn String? extract_symbol_at_cursor(Cursor cursor, sz offset)
 
 		case VAR_DECL:
 		{
-			VarDecl* vardecl = node.as(VAR_DECL);
+			VarDecl* vardecl = node.as(VarDecl);
 			
 			if (!is_offset_in_range(offset, vardecl.name.range)) return "";
 			return pool.get(vardecl.name.id);
