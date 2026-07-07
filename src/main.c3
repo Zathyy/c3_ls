@@ -1,9 +1,11 @@
 module lsp;
 import lsp::server;
 import seali;
+import derive;
 
 import std::collections::maybe;
 
+$expand(derive(CliArgs::name, seali));
 struct CliArgs @Command({ .name = "c3_ls" })
 {
 	Maybe{String} stdlib_path   @Seali(arg(long, help = "The std path"));
@@ -17,7 +19,9 @@ struct CliArgs @Command({ .name = "c3_ls" })
 
 fn int main(String[] args)
 {
-	CliArgs cli = seali::parse(CliArgs, args)!!;
+	CliArgs cli;
+	cli.parse(args)!!;
+
 	server::start(cli);
 	return 0;
 }
