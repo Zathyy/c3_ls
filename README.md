@@ -7,8 +7,9 @@ Language Server Protocol (LSP) implementation for the **C3 programming language*
 ## Getting Started
 
 ### Prerequisites
-Before compiling, ensure you have the **C3 compiler (`c3c`)** installed and available in your system path. 
-* Recommended version: 0.8.1
+Before compiling, ensure you have the **C3 compiler (`c3c`)** installed and available in your system path.
+* Required version: 0.8.2 - pre release
+* Recommended version: 0.8.2 - pre release
 
 ### Installation
 
