@@ -69,14 +69,26 @@ fn bool provide_member_access(Context* ctx, List{CompletionItem}* items)
 		case STATIC:
 		{
 			provide_module_paths(ctx, items);
-			List{SemaVar} active_vars = ctx.section.get_active_vars((int)ctx.base_offset);
-			foreach (var_entry : active_vars)
+			
+			SemaScope* leaf = sema::find_deepest_scope(&ctx.section.scope, (int)ctx.offset);
+
+			if (ctx.base_identifier.len > 0)
 			{
-				Cursor var_cursor = { .section = ctx.section, .node = var_entry.def };
+				if (try SemaVar sema_var = leaf.find_variable(ctx.base_identifier))
+				{
+					log::debug("Resolved '%s' to local variable", ctx.base_identifier);
+					return provide_type_static_completions(ctx, items, sema_var.def);
+				}
+			}
+
+			List{SemaVar} symbols = sema::collect_visible_symbols(tmem, leaf, (int)ctx.offset);
+			foreach (entry : symbols)
+			{
+				Cursor var_cursor = { .node = entry.def };
 				if ((var_cursor.spelling(tmem) ?? "") == ctx.base_identifier)
 				{
 					log::debug("Base identifier '%s' resolved to local variable instance");
-					return provide_type_static_completions(ctx, items, var_entry.def);
+					return provide_type_static_completions(ctx, items, entry.def);
 				}
 			}
 
@@ -171,17 +183,38 @@ fn bool provide_member_access(Context* ctx, List{CompletionItem}* items)
 		case INSTANCE:
 		{
 			log::debug("acess: %s", "instance");
-			List{SemaVar} active_vars = ctx.section.get_active_vars((int)ctx.base_offset);
+			
+			SemaScope* leaf = sema::find_deepest_scope(&ctx.section.scope, (int)ctx.offset);
 			Node* var_def = null;
 
-			foreach (var_entry : active_vars)
+			log::debug("Cursor at %d, leaf scope range is [%d:%d]", 
+		   	ctx.offset, leaf.range.start, leaf.range.end);
+			
+			if (ctx.base_identifier.len > 0)
 			{
-				Cursor var_cursor = { .section = ctx.section, .node = var_entry.def };
-				log::debug("var spelling: %s", var_cursor.spelling(tmem) ?? "");
-				if ((var_cursor.spelling(tmem) ?? "") == ctx.base_identifier)
+				if (try SemaVar sema_var = leaf.find_variable(ctx.base_identifier))
 				{
-					var_def = var_entry.def;
-					break;
+					log::debug("Resolved '%s' to local variable", ctx.base_identifier);
+					var_def = sema_var.def;
+				}
+				else
+				{
+					log::debug("Could not find variable '%s' in scope", ctx.base_identifier);
+					return false;
+				}
+			}
+			else
+			{
+				List{SemaVar} symbols = sema::collect_visible_symbols(tmem, leaf, (int)ctx.offset);
+				foreach (var_entry : symbols)
+				{
+					Cursor var_cursor = { .node = var_entry.def };
+					log::debug("var spelling: %s", var_cursor.spelling(tmem) ?? "");
+					if ((var_cursor.spelling(tmem) ?? "") == ctx.base_identifier)
+					{
+						var_def = var_entry.def;
+						break;
+					}
 				}
 			}
 
@@ -190,15 +223,8 @@ fn bool provide_member_access(Context* ctx, List{CompletionItem}* items)
 				log::debug("Could not find local variable declaration for: %s", ctx.base_identifier);
 				return false;
 			}
-
-			ModuleSection* section = workspace::get_section_from_node(ctx.ws, var_def);
-			if (!section)
-			{
-				log::debug("Failed to get section from node");
-				return false;
-			}
 		
-			Cursor type_cursor = { section, var_def.as(VarDecl).type };
+			Cursor type_cursor = { var_def.as(VarDecl).type };
 			String type_spelling = type_cursor.raw_type_identifier() ?? "";
 
 			log::debug("Checking for type: %s", type_spelling);
@@ -210,13 +236,6 @@ fn bool provide_member_access(Context* ctx, List{CompletionItem}* items)
 			
 			log::debug("found candidate: %s", candidates[0].node.kind);
 
-			section = workspace::get_section_from_node(ctx.ws, candidates[0].node);
-			if (!section)
-			{
-				log::debug("Failed to get section from node");
-				return false;
-			}
-
 			if (candidates[0].node.kind == STRUCT_DECL)
 			{
 				StructDecl* str_decl = candidates[0].node.as(StructDecl);
@@ -225,10 +244,10 @@ fn bool provide_member_access(Context* ctx, List{CompletionItem}* items)
 					if (field_node.kind != VAR_DECL) continue;
 					VarDecl* field = field_node.as(VarDecl);
 
-					Cursor field_cursor = { section, field_node };
+					Cursor field_cursor = { field_node };
 					String field_name = field_cursor.spelling(tmem) ?? "";
 
-					Cursor field_type_cursor = { section, field.type };
+					Cursor field_type_cursor = { field.type };
 					String field_type_name = field_type_cursor.spelling(tmem) ?? "";
 
 					if (ctx.prefix.len > 0 && !field_name.contains(ctx.prefix)) continue;
@@ -275,10 +294,7 @@ fn bool provide_member_access(Context* ctx, List{CompletionItem}* items)
 
 fn bool provide_type_static_completions(Context* ctx, List{CompletionItem}* items, Node* var_def)
 {
-	ModuleSection* section = workspace::get_section_from_node(ctx.ws, var_def);
-	if (!section) return false;
-
-	Cursor type_cursor = { section, var_def.as(VarDecl).type };
+	Cursor type_cursor = { var_def };
 	String type_spelling = type_cursor.raw_type_identifier() ?? "";
 	if (type_spelling.len == 0) return false;
 

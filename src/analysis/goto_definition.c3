@@ -103,7 +103,6 @@ fn String? extract_symbol_at_cursor(Cursor cursor, sz offset)
 {
 	if (!cursor.is_valid()) return "";
 	Node* node = cursor.node;
-	StringPool* pool = &cursor.section.source_file.ast.string_pool;
 
 	switch (node.kind)
 	{
@@ -116,7 +115,7 @@ fn String? extract_symbol_at_cursor(Cursor cursor, sz offset)
 				log::info("Cursor inside FN_DECL but missed the name token.");
 				return "";
 			}
-			return pool.get(fndecl.name.id);
+			return fndecl.name.text;
 		}
 		case STRUCT_DECL:
 		{
@@ -124,7 +123,7 @@ fn String? extract_symbol_at_cursor(Cursor cursor, sz offset)
 			
 			if (!is_offset_in_range(offset, structdecl.name.range)) return "";
 			
-			return pool.get(structdecl.name.id);
+			return structdecl.name.text;
 		}
 
 		case VAR_DECL:
@@ -132,7 +131,7 @@ fn String? extract_symbol_at_cursor(Cursor cursor, sz offset)
 			VarDecl* vardecl = node.as(VarDecl);
 			
 			if (!is_offset_in_range(offset, vardecl.name.range)) return "";
-			return pool.get(vardecl.name.id);
+			return vardecl.name.text;
 		}
 		case TYPE_EXPR:
 		{

@@ -250,11 +250,10 @@ fn void inject_type_properties(Context* ctx, List{CompletionItem}* items, NodeKi
 fn String format_contract_markdown(ModuleSection* section, ContractDecl* contract, String signature)
 {
 	DString md = dstring::temp_with_capacity(512);
-	StringPool* pool = &section.source_file.ast.string_pool;
 
 	md.appendf("```\n%s\n```\n", signature);
 	
-	String? raw_doc = contract.get_comment(pool);
+	String? raw_doc = contract.comment.text;
 	if (try raw_doc && raw_doc.len > 0)
 	{
 		log::info("raw doc: %s", raw_doc);

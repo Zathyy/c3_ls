@@ -14,7 +14,7 @@ import uri;
 fn void provide_keywords(Context* ctx, List{CompletionItem}* items)
 {
 	if (ctx.access != NONE) return;
-
+	
 	foreach (kw : lsp::Keywords::values)
 	{
 		switch (ctx.scope)
@@ -117,7 +117,7 @@ fn void add_symbol_completion(Context* ctx, List{CompletionItem}* items, String 
 	}
 	
 	String detail_string = string::tformat("%s via %s", type_desc, base_identifier);
-
+ 
 	String filter_text = symbol_name;
 	if (filter_text.len > 0 && filter_text[0] == '@')
 	{
@@ -131,7 +131,7 @@ fn void add_symbol_completion(Context* ctx, List{CompletionItem}* items, String 
 		.insert_text = insert_text,
 		.insert_text_format = format,
 		.filter_text = filter_text,
-		.sort_text = string::tformat("0001_%s", symbol_name),
+		.sort_text = string::tformat("0005_%s", symbol_name),
 		.data = string::tformat("%d;%s", ctx.section.id, symbol_name)
 	});
 }

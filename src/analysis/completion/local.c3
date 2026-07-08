@@ -15,24 +15,26 @@ fn void provide_locals(Context* ctx, List{CompletionItem}* items)
 {
 	if (ctx.scope != EXECUTION) return;
 	if (ctx.access != NONE) return;
-
-	ModuleSection* sec = ctx.section;
 	
-	List{SemaVar} active_vars = sec.get_active_vars((int)ctx.offset);
-
-	foreach (var_entry : active_vars)
+	ModuleSection* sec = ctx.section;
+	SemaScope* root = &sec.scope;
+	SemaScope* leaf = sema::find_deepest_scope(root, (int)ctx.offset);
+	List{SemaVar} symbols = sema::collect_visible_symbols(tmem, leaf, (int)ctx.offset);
+	foreach (symbol : symbols)
     {
-		VarDecl* decl = var_entry.def.as(VarDecl);
-        Cursor var_cursor = { .section = ctx.section, .node = var_entry.def };
+		if (!symbol.def) continue;
+		
+		VarDecl* decl = symbol.def.as(VarDecl);
+        Cursor var_cursor = { .node = symbol.def };
         String name = var_cursor.spelling(tmem) ?? "";
 
         if (ctx.prefix.len > 0 && !name.contains(ctx.prefix)) continue;
-
-		Cursor type_cursor = { ctx.section, decl.type };
+		
+		Cursor type_cursor = { decl.type };
 		String type_name;
 		if (decl.type)
 		{
-			type_name = type_cursor.spelling(tmem) ?? "";
+			type_name = type_cursor.raw_type_identifier() ?? "";
 		}
 		
         String details;
@@ -59,7 +61,7 @@ fn void provide_locals(Context* ctx, List{CompletionItem}* items)
 			kind = VARIABLE;
 			details = string::tformat("(local) %s", type_name);
 		}
-
+		
         items.push({ 
             .label = name, 
             .kind = kind, 

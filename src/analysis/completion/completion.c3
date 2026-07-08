@@ -81,8 +81,8 @@ fn void? resolve_item(LspProject* project, CompletionItem* item)
 		case FN_DECL:
 		{
 			item.documentation.kind = MARKDOWN;
-			Cursor cursor = { section, entry.node };
-			String signature = cursor.signature_text() ?? "fn";
+			Cursor cursor = { entry.node };
+			String signature = cursor.signature_text(section.source_file) ?? "fn";
 			FnDecl* decl = entry.node.as(FnDecl);
 			if (try val = decl.contract.get())
 			{
@@ -111,7 +111,7 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
 		.line = (sz)ctx.position.line,
 		.column = (sz)ctx.position.character
 	};
-	
+
 	log::info("resolve - editor location: %s:%s", loc.line + 1, loc.column + 1);
 
 	List{CompletionItem} items; items.init(tmem);
@@ -135,19 +135,22 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
         }
     }
 
-	
-
 	Location res_loc = sf.line_map.resolve(offset);
-
+	
 	log::info("resolve - parser location: %s:%s", res_loc.line + 1, res_loc.column + 1);
 
 	ctx.access = NONE;
 	ctx.base_identifier = "";
 
-	Cursor current_cursor = ctx.ws.find_top_level_statement_at_location(uri.path, loc);
+	Cursor current_cursor = ctx.ws.find_top_level_statement_at_location(uri.path, loc, &ctx.section);
 	ctx.top_level_node = current_cursor.node;
-	ctx.section = current_cursor.is_valid() ? current_cursor.section : file_sections.last()!;
+	if (!ctx.section)
+	{
+		ctx.section = file_sections.last()!;
+	}
 
+	ctx.leaf_node = cursor::find_at(ctx.section, (int)ctx.offset).node;
+	
 	context_populate_tokens(&ctx);
 	detect_access_context(&ctx);
 	ctx.scope = analysis::find_scope(&ctx, (int)offset);
@@ -156,7 +159,7 @@ fn CompletionItem[]? resolve(LspProject* project, Uri uri, LspPosition pos)
 	log::info("Scope: %s", ctx.scope.description);
 	log::info("base_ident: %s", ctx.base_identifier);
 	log::info("prefix: %s", ctx.prefix);
-
+ 
 	if (provide_member_access(&ctx, &items)) 
 	{
 		return items.array_view();
