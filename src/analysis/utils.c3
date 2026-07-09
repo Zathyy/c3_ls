@@ -2,6 +2,7 @@ module lsp::analysis;
 
 import analyzer::core;
 import analyzer::cursor;
+import analyzer::workspace;
 
 import std::collections::list;
 
@@ -207,6 +208,73 @@ fn MarkupContent md(String md)
 	};
 }
 
+fn List{String} get_expression_chain(Context* ctx)
+{
+	List{String} chain; chain.tinit();
+	sz cursor_idx = -1;
+	for (sz i = 0; i < ctx.tokens.len(); i++) 
+	{
+		if (ctx.tokens[i].pos > ctx.offset) 
+		{
+			cursor_idx = i - 1;
+			log::info("Found token: idx = %d", cursor_idx);
+			break;
+		}
+	}
+	if (cursor_idx == -1) return chain;
+	bool expect_ident = true;
+	for (sz i = cursor_idx; i >= 0; i--)
+	{
+		Token t = ctx.tokens[i];
+		if (expect_ident)
+		{
+			if (t.kind == DOT || t.kind == SCOPE) continue;
+			if (t.kind == IDENT || t.kind == TYPE_IDENT)
+			{
+				chain.insert_at(0, ctx.section.source_file.source[t.pos:t.len]);
+				expect_ident = false;
+				log::info("appened!");
+			}
+			else
+			{
+				break;
+			}
+		}
+		else
+		{
+			if (t.kind == DOT || t.kind == SCOPE) 
+			{
+				expect_ident = true;
+			} 
+			else 
+			{
+				break;
+			}
+		}
+	}
+	
+	return chain;
+}
+
+fn Module* find_module_by_identifier(Workspace* ws, String current_module_name, String identifier)
+{
+	String scoped_path = "";
+	if (current_module_name.len > 0) 
+	{
+		scoped_path = string::tformat("%s::%s", current_module_name, identifier);
+	}
+	String suffix_path = string::tformat("::%s", identifier);
+
+	ws.modules.@each(; mod_name, mod)
+	{
+		if (mod_name == identifier) return mod;
+		if (scoped_path.len > 0 && mod_name == scoped_path) return mod;
+		if (mod_name.ends_with(suffix_path)) return mod;
+	};
+
+	return null;
+}
+
 fn void inject_type_properties(Context* ctx, List{CompletionItem}* items, NodeKind type_kind)
 {
 	items.push({ .label = "alignment", .kind = PROPERTY, .detail = "sz", .documentation = md("Alignment of the type in bytes.") });
@@ -323,35 +391,35 @@ fn String format_contract_markdown(ModuleSection* section, ContractDecl* contrac
 		
 	String raw_str = md.str_view();
 	DString escape_buf = dstring::temp_with_capacity(raw_str.len * 2);
-    
-    // Process every single byte sequentially to avoid intermediate allocator overlap
-    for (sz i = 0; i < raw_str.len; i++)
-    {
-        char c = raw_str[i];
-        switch (c)
-        {
-            case '\\':
-                escape_buf.append("\\\\");
-                break;
-            case '"':
-                escape_buf.append("\\\"");
-                break;
-            case '\n':
-                escape_buf.append("\\n");
-                break;
-            case '\r':
-                escape_buf.append("\\r");
-                break;
-            case '\t':
-                escape_buf.append("\\t");
-                break;
-            default:
-                escape_buf.append_char(c);
-                break;
-        }
-    }
+	
+	// Process every single byte sequentially to avoid intermediate allocator overlap
+	for (sz i = 0; i < raw_str.len; i++)
+	{
+		char c = raw_str[i];
+		switch (c)
+		{
+			case '\\':
+				escape_buf.append("\\\\");
+				break;
+			case '"':
+				escape_buf.append("\\\"");
+				break;
+			case '\n':
+				escape_buf.append("\\n");
+				break;
+			case '\r':
+				escape_buf.append("\\r");
+				break;
+			case '\t':
+				escape_buf.append("\\t");
+				break;
+			default:
+				escape_buf.append_char(c);
+				break;
+		}
+	}
 
 	log::info("formatted markdown: %s", escape_buf.str_view());
 
-    return escape_buf.str_view();
+	return escape_buf.str_view();
 }

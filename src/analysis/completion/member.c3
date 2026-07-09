@@ -68,228 +68,130 @@ fn bool provide_member_access(Context* ctx, List{CompletionItem}* items)
 		// (type_ident) TypeResolution
 		case STATIC:
 		{
-			provide_module_paths(ctx, items);
-			
-			SemaScope* leaf = sema::find_deepest_scope(&ctx.section.scope, (int)ctx.offset);
-
-			if (ctx.base_identifier.len > 0)
-			{
-				if (try SemaVar sema_var = leaf.find_variable(ctx.base_identifier))
-				{
-					log::debug("Resolved '%s' to local variable", ctx.base_identifier);
-					return provide_type_static_completions(ctx, items, sema_var.def);
-				}
-			}
-
-			List{SemaVar} symbols = sema::collect_visible_symbols(tmem, leaf, (int)ctx.offset);
-			foreach (entry : symbols)
-			{
-				Cursor var_cursor = { .node = entry.def };
-				if ((var_cursor.spelling(tmem) ?? "") == ctx.base_identifier)
-				{
-					log::debug("Base identifier '%s' resolved to local variable instance");
-					return provide_type_static_completions(ctx, items, entry.def);
-				}
-			}
-
-			Module* target_mod = null;
-			String current_module_name = ctx.section.parent_module.name;
-			String path_suffix = string::tformat("::%s", ctx.base_identifier);
-
-			log::debug("curent_module_name: %s", current_module_name);
-			log::debug("path_suffix: %s", path_suffix);
-			
-			ctx.ws.modules.@each(; mod_name, mod)
-			{
-				do MOD_SEARCH:
-				{
-					log::debug("comparing: %s against %s", ctx.base_identifier, mod_name);
-					if (mod_name == ctx.base_identifier)
-					{
-						target_mod = mod;
-						break MOD_SEARCH;
-					}
-
-					if (current_module_name.len > 0)
-					{
-						String combined_path = string::tformat("%s::%s", current_module_name, ctx.base_identifier);
-						if (mod_name == combined_path)
-						{
-							target_mod = mod;
-							break MOD_SEARCH;
-						}
-					}
-					log::debug("comparing (ends_with): %s against %s", path_suffix, mod_name);
-					if (mod_name.len >= path_suffix.len)
-					{
-						sz suffix_start = mod_name.len - path_suffix.len;
-						bool is_suffix_match = true;
-
-						for (sz i = 0; i < path_suffix.len; i++)
-						{
-							if (mod_name[suffix_start + i] != path_suffix[i])
-							{
-								is_suffix_match = false;
-								break MOD_SEARCH;
-							}
-						}
-						
-						if (is_suffix_match)
-						{
-							log::debug("Suffix match successful for: %s", mod_name);
-							target_mod = mod;
-							break MOD_SEARCH;
-						}
-					}
-				};
-			};
-
-			if (target_mod)
-			{
-				log::debug("Resolved module scope via path cascade: %s", target_mod.name);
-				
-				target_mod.symbols.@each(; symbol_name, symbol_list)
-				{
-					do CHECK:
-					{
-						if (symbol_list.is_empty()) break CHECK;
-						if (ctx.prefix.len > 0 && !symbol_name.contains(ctx.prefix)) break CHECK;
-
-						foreach (entry : symbol_list)
-						{
-							if (entry.node.visibility != PUBLIC) continue;
-							if (entry.node.kind == MODULE_DECL || entry.node.kind == IMPORT_DECL) continue;
-
-							add_symbol_completion(ctx, items, symbol_name, entry.node, ctx.base_identifier);
-						}
-					};
-				};
-				
-				return true;
-			}
-
-			List{SymbolEntry}? candidates = ctx.ws.find_symbol_by_name(ctx.base_identifier);
-			if (catch candidates) return false;
-			if (candidates.len() == 0) return false;
-			if (!candidates[0].node) return false;;
-
-			Node* target_node = candidates[0].node;
-
-			// Otherwise, it's a Type Resolution (e.g., MyStruct::, int::)
-			log::debug("Base identifier '%s' resolved to type kind: %s", ctx.base_identifier, target_node.kind);
-			analysis::inject_type_properties(ctx, items, target_node.kind);
-			return true;
+			return provide_static_access(ctx, items);
 		}
 		case INSTANCE:
 		{
-			log::debug("acess: %s", "instance");
-			
-			SemaScope* leaf = sema::find_deepest_scope(&ctx.section.scope, (int)ctx.offset);
-			Node* var_def = null;
-
-			log::debug("Cursor at %d, leaf scope range is [%d:%d]", 
-		   	ctx.offset, leaf.range.start, leaf.range.end);
-			
-			if (ctx.base_identifier.len > 0)
-			{
-				if (try SemaVar sema_var = leaf.find_variable(ctx.base_identifier))
-				{
-					log::debug("Resolved '%s' to local variable", ctx.base_identifier);
-					var_def = sema_var.def;
-				}
-				else
-				{
-					log::debug("Could not find variable '%s' in scope", ctx.base_identifier);
-					return false;
-				}
-			}
-			else
-			{
-				List{SemaVar} symbols = sema::collect_visible_symbols(tmem, leaf, (int)ctx.offset);
-				foreach (var_entry : symbols)
-				{
-					Cursor var_cursor = { .node = var_entry.def };
-					log::debug("var spelling: %s", var_cursor.spelling(tmem) ?? "");
-					if ((var_cursor.spelling(tmem) ?? "") == ctx.base_identifier)
-					{
-						var_def = var_entry.def;
-						break;
-					}
-				}
-			}
-
-			if (!var_def)
-			{
-				log::debug("Could not find local variable declaration for: %s", ctx.base_identifier);
-				return false;
-			}
-		
-			Cursor type_cursor = { var_def.as(VarDecl).type };
-			String type_spelling = type_cursor.raw_type_identifier() ?? "";
-
-			log::debug("Checking for type: %s", type_spelling);
-
-			List{SymbolEntry}? candidates = ctx.ws.find_symbol_by_name(type_spelling);
-			if (catch candidates) return false;
-			if (candidates.len() == 0) return false;
-			if (!candidates[0].node) return false;
-			
-			log::debug("found candidate: %s", candidates[0].node.kind);
-
-			if (candidates[0].node.kind == STRUCT_DECL)
-			{
-				StructDecl* str_decl = candidates[0].node.as(StructDecl);
-				foreach (field_node : str_decl.fields)
-				{
-					if (field_node.kind != VAR_DECL) continue;
-					VarDecl* field = field_node.as(VarDecl);
-
-					Cursor field_cursor = { field_node };
-					String field_name = field_cursor.spelling(tmem) ?? "";
-
-					Cursor field_type_cursor = { field.type };
-					String field_type_name = field_type_cursor.spelling(tmem) ?? "";
-
-					if (ctx.prefix.len > 0 && !field_name.contains(ctx.prefix)) continue;
-					
-					items.push({
-						.label = field_name,
-						.kind = FIELD,
-						.detail = field_type_name
-					});
-				}
-			}
-			
-			ctx.ws.modules.@each(; name, mod)
-			{
-				mod.registry.methods.@each(; MethodKey key, List{SymbolEntry} list)
-				{
-					if COND: (key.type_name == ctx.base_identifier) 
-					{
-						if (ctx.prefix.len > 0 && !key.method_name.contains(ctx.prefix)) break COND;
-
-						foreach (entry : list) 
-						{
-							items.push({
-								.label = key.method_name,
-								.kind = METHOD,
-								.detail = string::tformat("method of %s", ctx.base_identifier)
-							});
-							break;
-						}
-
-					}
-				};
-			};
-			
-			return true;
+			return provide_instance_access(ctx, items);
 		}	
-
 
 		default:
 	}
 	
 	return false;
+}
+
+fn bool provide_static_access(Context* ctx, List{CompletionItem}* items)
+{
+	provide_module_paths(ctx, items);
+
+	SemaScope* leaf = sema::find_deepest_scope(&ctx.section.scope, (int)ctx.offset);
+	SemaVar? sema_var = leaf.find_variable(ctx.base_identifier);
+	if (try sema_var && sema_var.def)
+	{
+		return provide_type_static_completions(ctx, items, sema_var.def);
+	}
+
+	Module* target_mod = analysis::find_module_by_identifier(ctx.ws, ctx.section.parent_module.name, ctx.base_identifier);
+	if (target_mod) 
+	{
+		collect_module_symbols(ctx, items, target_mod);
+		return true;
+	}
+
+	List{SymbolEntry}? candidates = ctx.ws.find_symbol_by_name(ctx.base_identifier);
+	if (try candidates) 
+	{
+		if (candidates.len() > 0 && candidates[0].node)
+		{
+			analysis::inject_type_properties(ctx, items, candidates[0].node.kind);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+fn bool provide_instance_access(Context* ctx, List{CompletionItem}* items)
+{
+	List{String} chain = analysis::get_expression_chain(ctx);
+	if (chain.len() == 0) return false;
+
+	SemaScope* leaf = sema::find_deepest_scope(&ctx.section.scope, (int)ctx.offset);
+	SymbolEntry result = cursor::resolve_chained_type(ctx.ws, leaf, chain.array_view());
+	
+	if (!result.node || result.node.kind != STRUCT_DECL) return false;
+
+	StructDecl* str_decl = result.node.as(StructDecl);
+	String type_name = str_decl.name.text;
+
+	collect_struct_fields(ctx, items, str_decl);
+	collect_methods_for_type(ctx, items, type_name);
+
+	return true;
+}
+
+fn void collect_module_symbols(Context* ctx, List{CompletionItem}* items, Module* mod)
+{
+	mod.symbols.@each(; symbol_name, symbol_list)
+	{
+		do SYMB:
+		{
+			if (symbol_list.is_empty()) break SYMB;
+			if (ctx.prefix.len > 0 && !symbol_name.contains(ctx.prefix)) break SYMB;
+
+			foreach (entry : symbol_list)
+			{
+				if (entry.node.visibility != PUBLIC) break SYMB;
+				if (entry.node.kind == MODULE_DECL || entry.node.kind == IMPORT_DECL) break SYMB;
+				add_symbol_completion(ctx, items, symbol_name, entry.node, ctx.base_identifier);
+			}
+		};
+	};
+}
+
+fn void collect_struct_fields(Context* ctx, List{CompletionItem}* items, StructDecl* str_decl)
+{
+	foreach (field_node : str_decl.fields)
+	{
+		if (field_node.kind != VAR_DECL) continue;
+		VarDecl* field = field_node.as(VarDecl);
+		
+		String name = field.name.text;
+		if (ctx.prefix.len > 0 && !name.contains(ctx.prefix)) continue;
+
+		Cursor tc = { field.type };
+
+		items.push({
+			.label = name,
+			.kind = FIELD,
+			.detail = tc.spelling(tmem) ?? ""
+		});
+	}
+}
+
+fn void collect_methods_for_type(Context* ctx, List{CompletionItem}* items, String type_name)
+{
+	ctx.ws.modules.@each(; name, mod)
+	{
+		mod.registry.methods.@each(; MethodKey key, List{SymbolEntry} list)
+		{
+			do CHECK:
+			{
+				if (key.type_name != type_name) continue;
+				if (ctx.prefix.len > 0 && !key.method_name.contains(ctx.prefix)) continue;
+
+				foreach (en : list) {
+					items.push({
+						.label = key.method_name,
+						.kind = METHOD,
+						.detail = string::tformat("method of %s", type_name)
+					});
+					break;
+				}
+			};
+		};
+	};
 }
 
 fn bool provide_type_static_completions(Context* ctx, List{CompletionItem}* items, Node* var_def)
