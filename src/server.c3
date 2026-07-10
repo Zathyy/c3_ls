@@ -13,6 +13,7 @@ import uri;
 import std::os::process;
 
 bool is_ready;
+bool is_std_path_alloc;
 bool running @local;
 LogLevel log_level;
 String log_path;
@@ -25,6 +26,14 @@ fn void start(CliArgs args)
 	log_level = args.log_level;
 	log::set_priority_all(VERBOSE);
 
+	log_path = args.log_path;
+	std_path = args.stdlib_path;
+	log_level = args.log_level;
+
+	log::info("LogPath = %s", log_path);
+	log::info("std_path = %s", std_path);
+	log::info("log_level = %s", log_level);
+
 	io_handler::init();
 
 	project.init(mem);
@@ -32,23 +41,13 @@ fn void start(CliArgs args)
 	
 	running = true;
 
-	if (try log = args.log_path.get())
-	{
-		log::info("Set logging to path = %s", log);
-		log_path = log;
-	}
-
-	if (try val = args.stdlib_path.get())
-	{
-		std_path = val;
-	}
-	else
+	if (!std_path)
 	{
 		setup_stdlib_path();
 	}
 
 	defer {
-		if (std_path) 
+		if (is_std_path_alloc) 
 		{
 			std_path.free(mem);
 		}
@@ -168,7 +167,7 @@ fn void setup_stdlib_path() => @pool()
 	{
 		return;
 	}
-
+	is_std_path_alloc = true;
 	std_path = string::format(mem, "%s/lib", line[index + 1..].trim());
 	log::info("Set std-lib path: %s", std_path);
 } 
