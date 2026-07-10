@@ -119,14 +119,28 @@ fn bool provide_instance_access(Context* ctx, List{CompletionItem}* items)
 
 	SemaScope* leaf = sema::find_deepest_scope(&ctx.section.scope, (int)ctx.offset);
 	SymbolEntry result = cursor::resolve_chained_type(ctx.ws, leaf, chain.array_view());
-	
-	if (!result.node || result.node.kind != STRUCT_DECL) return false;
 
-	StructDecl* str_decl = result.node.as(StructDecl);
-	String type_name = str_decl.name.text;
+	if (!result.node) return false;
 
-	collect_struct_fields(ctx, items, str_decl);
-	collect_methods_for_type(ctx, items, type_name);
+	switch (result.node.kind)
+	{
+	case STRUCT_DECL:
+		{
+			StructDecl* str_decl = result.node.as(StructDecl);
+			String type_name = str_decl.name.text;
+			collect_struct_fields(ctx, items, str_decl);
+			break;
+		}
+	//case INTERFACE_DECL:
+	//	{
+	//		InterfaceDecl* decl = result.node.as(InterfaceDecl);
+	//		collect_methods_for_type(ctx, items, decl.name.text);
+	//		break;
+	//	}
+	default:
+	}
+
+	//collect_methods_for_type(ctx, items, type_name);
 
 	return true;
 }
